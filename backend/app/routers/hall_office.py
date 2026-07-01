@@ -12,6 +12,8 @@ from app.dependencies import get_db, require_role
 from app.models.allowed_roll import AllowedRollNumber
 from app.models.user import User, UserRole
 from app.schemas.hall_office import (
+    AllowedRollCreate,
+    AllowedRollResponse,
     RollNumberUploadResponse,
     StaffCreateRequest,
     StaffCreateResponse,
@@ -61,39 +63,51 @@ def upload_roll_numbers(
         )
 
     reader = csv.reader(io.StringIO(text))
-    roll_numbers: list[str] = []
-
+    parsed_rows = []
     for row_idx, row in enumerate(reader):
-        # Skip empty rows
         if not row or all(cell.strip() == "" for cell in row):
             continue
 
-        # Take the first non-empty cell in each row as the roll number
-        roll_no = row[0].strip()
-        if roll_no:
-            roll_numbers.append(roll_no)
+        roll_no = row[0].strip() if len(row) > 0 else None
+        if not roll_no:
+            continue
 
-    if not roll_numbers:
+        name = row[1].strip() if len(row) > 1 and row[1].strip() else None
+        email = row[2].strip() if len(row) > 2 and row[2].strip() else None
+        room_number = row[3].strip() if len(row) > 3 and row[3].strip() else None
+
+        parsed_rows.append({
+            "roll_no": roll_no,
+            "name": name,
+            "email": email,
+            "room_number": room_number
+        })
+
+    if not parsed_rows:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="CSV file contains no valid roll numbers.",
         )
 
-    # Remove duplicates while preserving order
+    # Remove duplicates by roll_no
     seen = set()
     unique_rolls = []
-    for rn in roll_numbers:
+    for row in parsed_rows:
+        rn = row["roll_no"]
         if rn not in seen:
             seen.add(rn)
-            unique_rolls.append(rn)
+            unique_rolls.append(row)
 
     # Replace mode: delete all existing, insert new
     db.query(AllowedRollNumber).delete()
 
-    for roll_no in unique_rolls:
+    for row in unique_rolls:
         db.add(
             AllowedRollNumber(
-                roll_no=roll_no,
+                roll_no=row["roll_no"],
+                name=row["name"],
+                email=row["email"],
+                room_number=row["room_number"],
                 uploaded_by=current_user.id,
             )
         )
@@ -104,6 +118,62 @@ def upload_roll_numbers(
         count=len(unique_rolls),
         message=f"{len(unique_rolls)} roll numbers uploaded (replaced existing list).",
     )
+
+
+# ---------------------------------------------------------------------------
+# Manual Roll Number Management
+# ---------------------------------------------------------------------------
+
+@router.get("/roll-numbers", response_model=list[AllowedRollResponse])
+def get_roll_numbers(
+    current_user: User = Depends(require_role("hall_office")),
+    db: Session = Depends(get_db),
+):
+    rolls = db.query(AllowedRollNumber).order_by(AllowedRollNumber.uploaded_at.desc()).all()
+    return rolls
+
+
+@router.post("/roll-numbers", response_model=AllowedRollResponse)
+def add_roll_number(
+    body: AllowedRollCreate,
+    current_user: User = Depends(require_role("hall_office")),
+    db: Session = Depends(get_db),
+):
+    existing = db.query(AllowedRollNumber).filter(AllowedRollNumber.roll_no == body.roll_no).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Roll number already exists in allowed list.",
+        )
+
+    new_roll = AllowedRollNumber(
+        roll_no=body.roll_no,
+        name=body.name,
+        email=body.email,
+        room_number=body.room_number,
+        uploaded_by=current_user.id,
+    )
+    db.add(new_roll)
+    db.commit()
+    db.refresh(new_roll)
+    return new_roll
+
+
+@router.delete("/roll-numbers/{roll_no}")
+def delete_roll_number(
+    roll_no: str,
+    current_user: User = Depends(require_role("hall_office")),
+    db: Session = Depends(get_db),
+):
+    roll = db.query(AllowedRollNumber).filter(AllowedRollNumber.roll_no == roll_no).first()
+    if not roll:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Roll number not found.",
+        )
+    db.delete(roll)
+    db.commit()
+    return {"message": "Roll number deleted successfully."}
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,9 @@ class AllowedRollNumber(Base):
     __tablename__ = "allowed_roll_numbers"
 
     roll_no: Mapped[str] = mapped_column(String(50), primary_key=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    room_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     uploaded_by: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=False
     )

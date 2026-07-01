@@ -3,12 +3,16 @@ Staff router — extras item CRUD, booking views, wastage management.
 """
 
 from datetime import date, datetime, time, timezone
+import csv
+import io
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, require_role
-from app.models.extras import ExtrasBooking, ExtrasItem
+from sqlalchemy import func
+from app.models.extras import ExtrasBooking, ExtrasItem, BookingStatus
 from app.models.user import User
 from app.models.wastage import WastageLog
 from app.schemas.extras import (
@@ -171,6 +175,48 @@ def list_all_bookings(
         )
 
     return result
+
+
+@router.get("/reports/extras/export")
+def export_extras_csv(
+    start_date: date,
+    end_date: date,
+    current_user: User = Depends(require_role("mess_staff")),
+    db: Session = Depends(get_db),
+):
+    query = (
+        db.query(
+            User.identifier.label("roll_no"),
+            User.name.label("name"),
+            func.sum(ExtrasBooking.total_price).label("total_amount")
+        )
+        .join(ExtrasBooking, User.id == ExtrasBooking.student_id)
+        .filter(
+            ExtrasBooking.booked_at >= datetime.combine(start_date, time.min),
+            ExtrasBooking.booked_at <= datetime.combine(end_date, time.max),
+            ExtrasBooking.status == BookingStatus.served
+        )
+        .group_by(User.identifier, User.name)
+        .order_by(User.identifier)
+    )
+
+    results = query.all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Roll Number", "Name", "Total Extras Amount"])
+
+    for row in results:
+        writer.writerow([row.roll_no, row.name, f"{row.total_amount:.2f}"])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=extras_report_{start_date}_to_{end_date}.csv"
+        }
+    )
 
 
 # ---------------------------------------------------------------------------

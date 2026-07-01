@@ -16,7 +16,6 @@ type Step = "details" | "otp" | "password";
 
 export default function SignupPage() {
   const [step, setStep] = useState<Step>("details");
-  const [email, setEmail] = useState("");
   const [rollNo, setRollNo] = useState("");
   const [otp, setOtp] = useState("");
   const [signupToken, setSignupToken] = useState("");
@@ -31,14 +30,13 @@ export default function SignupPage() {
   // Step 1: Request OTP
   const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !rollNo.trim()) return;
+    if (!rollNo.trim()) return;
 
     setIsSubmitting(true);
     try {
       await apiFetch("/auth/signup/request-otp", {
         method: "POST",
         body: JSON.stringify({
-          email: email.trim().toLowerCase(),
           roll_no: rollNo.trim(),
         }),
         skipAuth: true,
@@ -65,7 +63,7 @@ export default function SignupPage() {
         {
           method: "POST",
           body: JSON.stringify({
-            email: email.trim().toLowerCase(),
+            roll_no: rollNo.trim(),
             otp,
           }),
           skipAuth: true,
@@ -197,23 +195,6 @@ export default function SignupPage() {
                 required
               />
             </div>
-            <div>
-              <label
-                htmlFor="signup-email"
-                className="block text-xs font-medium text-text-secondary mb-1.5"
-              >
-                Institute Email
-              </label>
-              <input
-                id="signup-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="roll@iitk.ac.in"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent input-glow transition-colors"
-                required
-              />
-            </div>
             <button
               type="submit"
               disabled={isSubmitting}
@@ -232,7 +213,7 @@ export default function SignupPage() {
           >
             <p className="text-sm text-text-secondary text-center">
               Enter the 6-digit code sent to{" "}
-              <span className="text-accent font-medium">{email}</span>
+              <span className="text-accent font-medium">{rollNo.trim().toLowerCase()}@iitk.ac.in</span>
             </p>
             <div>
               <input

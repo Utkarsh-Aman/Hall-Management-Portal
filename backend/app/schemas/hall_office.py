@@ -45,3 +45,21 @@ class StaffToggleRequest(BaseModel):
 class RollNumberUploadResponse(BaseModel):
     count: int
     message: str
+
+
+class AllowedRollCreate(BaseModel):
+    roll_no: str = Field(..., min_length=1, max_length=50)
+    name: str | None = Field(None, max_length=255)
+    email: str | None = Field(None, max_length=255)
+    room_number: str | None = Field(None, max_length=50)
+
+
+class AllowedRollResponse(BaseModel):
+    roll_no: str
+    name: str | None
+    email: str | None
+    room_number: str | None
+    uploaded_at: datetime
+    uploaded_by: int
+
+    model_config = {"from_attributes": True}

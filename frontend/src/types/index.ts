@@ -129,6 +129,22 @@ export interface RollNumberUploadResponse {
   message: string;
 }
 
+export interface AllowedRollResponse {
+  roll_no: string;
+  name: string | null;
+  email: string | null;
+  room_number: string | null;
+  uploaded_at: string;
+  uploaded_by: number;
+}
+
+export interface AllowedRollCreate {
+  roll_no: string;
+  name?: string;
+  email?: string;
+  room_number?: string;
+}
+
 // ─── Worker ────────────────────────────────────────────
 export interface ScanSuccess {
   message: string;
@@ -159,4 +175,14 @@ export interface TodayBooking {
   student_identifier: string;
   qr_token: string;
   booked_at: string;
+}
+
+// ─── Notices ───────────────────────────────────────────
+export interface NoticeResponse {
+  id: number;
+  title: string;
+  description: string;
+  link: string | null;
+  created_at: string;
+  created_by: number;
 }

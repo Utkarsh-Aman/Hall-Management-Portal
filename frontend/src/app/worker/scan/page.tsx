@@ -11,6 +11,19 @@ import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import type { ScanResult, ScanSuccess, ScanAlreadyUsed } from "@/types";
 
+// Note: Replace these placeholders with actual base64 audio strings for better sound
+const SUCCESS_BEEP = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==";
+const ERROR_BEEP = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==";
+
+const playSound = (src: string) => {
+  try {
+    const audio = new Audio(src);
+    audio.play().catch((e) => console.log("Audio play blocked by browser:", e));
+  } catch (e) {
+    console.error("Failed to play audio", e);
+  }
+};
+
 export default function ScanPage() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -50,11 +63,14 @@ export default function ScanPage() {
         setScanResult(result);
 
         if ("already_served" in result && result.already_served) {
+          playSound(ERROR_BEEP);
           toast("This QR code was already used.", "warning");
         } else {
+          playSound(SUCCESS_BEEP);
           toast("Marked as served!", "success");
         }
       } catch (err: unknown) {
+        playSound(ERROR_BEEP);
         const error = err as Error & { status?: number };
         if (error.status === 404) {
           toast("QR code not recognized.", "error");

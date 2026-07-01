@@ -51,15 +51,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/signup/request-otp", response_model=RequestOTPResponse)
 def request_otp(body: RequestOTPRequest, db: Session = Depends(get_db)):
-    email = body.email.lower().strip()
     roll_no = body.roll_no.strip()
-
-    # Validate email domain
-    if not email.endswith("@iitk.ac.in"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email must end with @iitk.ac.in.",
-        )
+    email = f"{roll_no.lower()}@iitk.ac.in"
 
     # Check roll number is allowed
     allowed = (
@@ -125,7 +118,7 @@ def request_otp(body: RequestOTPRequest, db: Session = Depends(get_db)):
 
 @router.post("/signup/verify-otp", response_model=VerifyOTPResponse)
 def verify_otp(body: VerifyOTPRequest, db: Session = Depends(get_db)):
-    email = body.email.lower().strip()
+    email = f"{body.roll_no.lower().strip()}@iitk.ac.in"
 
     user = db.query(User).filter(User.identifier == email).first()
     if not user or user.password_set:

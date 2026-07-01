@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import auth, bookings, dashboard, hall_office, items, menu, staff, worker
+from app.routers import auth, bookings, dashboard, hall_office, items, menu, staff, worker, notices
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 # Configure logging
@@ -55,6 +55,7 @@ app.include_router(bookings.router)
 app.include_router(staff.router)
 app.include_router(worker.router)
 app.include_router(hall_office.router)
+app.include_router(notices.router)
 
 
 @app.get("/health")

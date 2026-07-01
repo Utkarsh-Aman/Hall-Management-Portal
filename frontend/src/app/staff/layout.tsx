@@ -10,6 +10,8 @@ const NAV_ITEMS = [
   { label: "Bookings", href: "/staff/bookings" },
   { label: "Menu", href: "/staff/menu" },
   { label: "Wastage", href: "/staff/wastage" },
+  { label: "Reports", href: "/staff/reports" },
+  { label: "Notices", href: "/staff/notices" },
 ];
 
 export default function StaffLayout({

@@ -11,7 +11,6 @@ from pydantic import BaseModel, EmailStr, Field
 
 class RequestOTPRequest(BaseModel):
     """Step 1: student requests an OTP."""
-    email: EmailStr
     roll_no: str = Field(..., min_length=1, max_length=50)
 
 
@@ -21,7 +20,7 @@ class RequestOTPResponse(BaseModel):
 
 class VerifyOTPRequest(BaseModel):
     """Step 2: student verifies the OTP."""
-    email: EmailStr
+    roll_no: str = Field(..., min_length=1, max_length=50)
     otp: str = Field(..., min_length=6, max_length=6)
 
 

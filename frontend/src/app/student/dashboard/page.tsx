@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { formatDateTime, getDayName, getTodayWeekday } from "@/lib/utils";
 import type { DashboardSummary, MenuSlot, WeeklyMenuResponse } from "@/types";
+import NoticeBoard from "@/components/NoticeBoard";
 
 export default function StudentDashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -62,6 +63,11 @@ export default function StudentDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Notice Board */}
+      <section>
+        <NoticeBoard />
+      </section>
+
       {/* Wastage Summary Strip */}
       <section>
         <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">

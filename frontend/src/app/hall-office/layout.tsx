@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { label: "Roll Numbers", href: "/hall-office/roll-numbers" },
   { label: "Staff Accounts", href: "/hall-office/staff-accounts" },
+  { label: "Notices", href: "/hall-office/notices" },
 ];
 
 export default function HallOfficeLayout({
