@@ -135,7 +135,7 @@ def verify_otp(body: VerifyOTPRequest, db: Session = Depends(get_db)):
         )
 
     # Check expiry
-    if not user.otp_expires_at or datetime.now(timezone.utc) > user.otp_expires_at:
+    if not user.otp_expires_at or datetime.now(timezone.utc).replace(tzinfo=None) > user.otp_expires_at:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="OTP has expired. Please request a new one.",
