@@ -10,10 +10,9 @@ from app.models.notice import Notice
 from app.models.user import User, UserRole
 from app.schemas.notice import NoticeCreate, NoticeResponse
 
-router = APIRouter(prefix="/notices", tags=["notices"])
+router = APIRouter(tags=["notices"])
 
-
-@router.get("", response_model=list[NoticeResponse])
+@router.get("/notices", response_model=list[NoticeResponse])
 def get_all_notices(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -23,7 +22,7 @@ def get_all_notices(
     return notices
 
 
-@router.post("", response_model=NoticeResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/notices", response_model=NoticeResponse, status_code=status.HTTP_201_CREATED)
 def create_notice(
     body: NoticeCreate,
     current_user: User = Depends(get_current_user),
@@ -48,7 +47,7 @@ def create_notice(
     return notice
 
 
-@router.delete("/{notice_id}")
+@router.delete("/notices/{notice_id}")
 def delete_notice(
     notice_id: int,
     current_user: User = Depends(get_current_user),

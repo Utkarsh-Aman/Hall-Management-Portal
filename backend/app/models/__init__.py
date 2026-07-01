@@ -5,6 +5,7 @@ from app.models.allowed_roll import AllowedRollNumber
 from app.models.extras import ExtrasItem, ExtrasBooking, BookingStatus
 from app.models.menu import WeeklyMenu, MealType
 from app.models.wastage import WastageLog
+from app.models.notice import Notice
 
 __all__ = [
     "User",
@@ -16,4 +17,5 @@ __all__ = [
     "WeeklyMenu",
     "MealType",
     "WastageLog",
+    "Notice",
 ]
