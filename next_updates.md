@@ -24,3 +24,4 @@ done=======
 2.on invalid credential or it does not auto maatically log out the use and redirect to login screen but stuck and let click buttons and pop invalid credentials 
 3.when a cancell request is the or button vanishes which should not as if user thinks it will not be cancelled can still show and eat out
 done========
+commit and pushe======================== 2 july 2:35

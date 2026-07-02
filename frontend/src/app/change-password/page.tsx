@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { apiFetch } from "@/lib/api";
 import { useAuth, getRoleHome } from "@/lib/auth";
+import type { LoginResponse } from "@/types";
 import { useToast } from "@/components/ui/Toast";
 
 export default function ChangePasswordPage() {
@@ -40,10 +41,7 @@ export default function ChangePasswordPage() {
 
     setIsSubmitting(true);
     try {
-      const data = await apiFetch<{
-        access_token: string;
-        user: { id: number; identifier: string; name: string; role: string };
-      }>("/auth/change-password", {
+      const data = await apiFetch<LoginResponse>("/auth/change-password", {
         method: "POST",
         body: JSON.stringify({
           change_token: changeToken,
@@ -54,15 +52,7 @@ export default function ChangePasswordPage() {
 
       sessionStorage.removeItem("change_token");
 
-      setUser(
-        {
-          id: data.user.id,
-          identifier: data.user.identifier,
-          name: data.user.name,
-          role: data.user.role as "mess_staff" | "mess_worker",
-        },
-        data.access_token
-      );
+      setUser(data.user, data.access_token);
 
       toast("Password changed! Welcome.", "success");
       router.push(getRoleHome(data.user.role));
