@@ -52,19 +52,18 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/signup/request-otp", response_model=RequestOTPResponse)
 def request_otp(body: RequestOTPRequest, db: Session = Depends(get_db)):
-    roll_no = body.roll_no.strip()
-    email = f"{roll_no.lower()}@iitk.ac.in"
+    email = body.email.strip().lower()
 
-    # Check roll number is allowed
+    # Check email is allowed
     allowed = (
         db.query(AllowedRollNumber)
-        .filter(AllowedRollNumber.roll_no == roll_no)
+        .filter(AllowedRollNumber.email == email)
         .first()
     )
     if not allowed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your roll number isn't recognized. Contact the hall office to be added.",
+            detail="Your email isn't recognized. Contact the hall office to be added.",
         )
 
     # Check if user already exists with this email and has set password
@@ -95,7 +94,7 @@ def request_otp(body: RequestOTPRequest, db: Session = Depends(get_db)):
             email=email,
             password_hash="",  # Not set yet
             role=UserRole.student,
-            name=roll_no,  # Temporary, will use roll_no as name
+            name=allowed.name or email.split("@")[0],  # Temporary or prefilled name
             is_active=True,
             otp_hash=otp_hash,
             otp_expires_at=expires_at,
@@ -119,7 +118,7 @@ def request_otp(body: RequestOTPRequest, db: Session = Depends(get_db)):
 
 @router.post("/signup/verify-otp", response_model=VerifyOTPResponse)
 def verify_otp(body: VerifyOTPRequest, db: Session = Depends(get_db)):
-    email = f"{body.roll_no.lower().strip()}@iitk.ac.in"
+    email = body.email.strip().lower()
 
     user = db.query(User).filter(User.identifier == email).first()
     if not user or user.password_set:
@@ -158,13 +157,13 @@ def verify_otp(body: VerifyOTPRequest, db: Session = Depends(get_db)):
     user.otp_hash = None
     user.otp_expires_at = None
     # Fetch prefill info from AllowedRollNumber if available
-    roll_no = body.roll_no.strip()
-    allowed = db.query(AllowedRollNumber).filter(AllowedRollNumber.roll_no == roll_no).first()
+    allowed = db.query(AllowedRollNumber).filter(AllowedRollNumber.email == email).first()
 
     return VerifyOTPResponse(
         signup_token=signup_token,
         name=allowed.name if allowed else None,
         room_no=allowed.room_number if allowed else None,
+        roll_no=allowed.roll_no if allowed else None,
     )
 
 
@@ -197,11 +196,12 @@ def set_password(body: SetPasswordRequest, response: Response, db: Session = Dep
             detail="Password already set. Please log in.",
         )
 
-    # Set password, name, and room_no
+    # Set password, name, room_no, and roll_no
     user.password_hash = hash_password(body.password)
     user.password_set = True
     user.name = body.name
     user.room_no = body.room_no
+    user.roll_no = body.roll_no
     db.commit()
 
     # Issue tokens

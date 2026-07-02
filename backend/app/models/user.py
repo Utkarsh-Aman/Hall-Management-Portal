@@ -40,6 +40,7 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     room_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    roll_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # OTP fields (used only during student signup)

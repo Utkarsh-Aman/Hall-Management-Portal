@@ -16,6 +16,7 @@ type Step = "details" | "otp" | "password";
 
 export default function SignupPage() {
   const [step, setStep] = useState<Step>("details");
+  const [email, setEmail] = useState("");
   const [rollNo, setRollNo] = useState("");
   const [otp, setOtp] = useState("");
   const [signupToken, setSignupToken] = useState("");
@@ -32,14 +33,14 @@ export default function SignupPage() {
   // Step 1: Request OTP
   const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rollNo.trim()) return;
+    if (!email.trim()) return;
 
     setIsSubmitting(true);
     try {
       await apiFetch("/auth/signup/request-otp", {
         method: "POST",
         body: JSON.stringify({
-          roll_no: rollNo.trim(),
+          email: email.trim(),
         }),
         skipAuth: true,
       });
@@ -60,12 +61,12 @@ export default function SignupPage() {
 
     setIsSubmitting(true);
     try {
-      const data = await apiFetch<{ signup_token: string; name?: string; room_no?: string }>(
+      const data = await apiFetch<{ signup_token: string; name?: string; room_no?: string; roll_no?: string }>(
         "/auth/signup/verify-otp",
         {
           method: "POST",
           body: JSON.stringify({
-            roll_no: rollNo.trim(),
+            email: email.trim(),
             otp,
           }),
           skipAuth: true,
@@ -74,6 +75,7 @@ export default function SignupPage() {
       setSignupToken(data.signup_token);
       if (data.name) setName(data.name);
       if (data.room_no) setRoomNo(data.room_no);
+      if (data.roll_no) setRollNo(data.roll_no);
       toast("OTP verified!", "success");
       setStep("password");
     } catch (err: unknown) {
@@ -106,8 +108,9 @@ export default function SignupPage() {
         body: JSON.stringify({
           signup_token: signupToken,
           password,
-          name: name.trim() || rollNo.trim(),
+          name: name.trim() || email.split("@")[0],
           room_no: roomNo.trim() || null,
+          roll_no: rollNo.trim() || null,
         }),
         skipAuth: true,
       });
@@ -186,17 +189,17 @@ export default function SignupPage() {
           >
             <div>
               <label
-                htmlFor="roll-no"
+                htmlFor="email"
                 className="block text-xs font-medium text-text-secondary mb-1.5"
               >
-                Roll Number
+                IITK Email
               </label>
               <input
-                id="roll-no"
-                type="text"
-                value={rollNo}
-                onChange={(e) => setRollNo(e.target.value)}
-                placeholder="e.g. 230001"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. utkarsh24@iitk.ac.in"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent input-glow transition-colors"
                 required
               />
@@ -219,7 +222,7 @@ export default function SignupPage() {
           >
             <p className="text-sm text-text-secondary text-center">
               Enter the 6-digit code sent to{" "}
-              <span className="text-accent font-medium">{rollNo.trim().toLowerCase()}@iitk.ac.in</span>
+              <span className="text-accent font-medium">{email.trim().toLowerCase()}</span>
             </p>
             <div>
               <input
@@ -264,6 +267,19 @@ export default function SignupPage() {
               Complete your profile and set a password.
             </p>
             <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  Roll Number
+                </label>
+                <input
+                  type="text"
+                  value={rollNo}
+                  onChange={(e) => setRollNo(e.target.value)}
+                  placeholder="e.g. 230001"
+                  className="w-full px-3 py-2.5 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent input-glow transition-colors"
+                  required
+                />
+              </div>
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">
                   Full Name *
