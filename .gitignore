@@ -31,3 +31,6 @@ out/
 
 # Logs
 *.log
+
+#personal
+back_db_auth.html

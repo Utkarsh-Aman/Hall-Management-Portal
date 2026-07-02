@@ -55,7 +55,7 @@ export default function StaffBookingsPage() {
     try {
       await apiFetch(`/staff/bookings/${id}`, { method: "DELETE" });
       toast("Booking cancelled successfully.", "success");
-      fetchBookings();
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: "cancelled" } : b));
     } catch (err: unknown) {
       toast((err as Error).message || "Failed to cancel booking.", "error");
     }
@@ -65,7 +65,7 @@ export default function StaffBookingsPage() {
     try {
       await apiFetch(`/staff/bookings/${id}/serve`, { method: "POST" });
       toast("Booking marked as served.", "success");
-      fetchBookings();
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: "served" } : b));
     } catch (err: unknown) {
       toast((err as Error).message || "Failed to mark as served.", "error");
     }
@@ -272,7 +272,7 @@ export default function StaffBookingsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {b.status === "booked" && (
+                    {(b.status === "booked" || b.status === "cancel_requested") && (
                       <div className="flex gap-2 justify-end">
                         <button
                           onClick={() => handleServe(b.id)}
