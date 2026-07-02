@@ -8,6 +8,9 @@ export interface UserBrief {
   identifier: string;
   name: string;
   role: "student" | "mess_staff" | "mess_worker" | "hall_office";
+  email: string | null;
+  roll_no: string | null;
+  room_no: string | null;
 }
 
 export interface LoginResponse {

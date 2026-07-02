@@ -154,7 +154,7 @@ export default function HistoryPage() {
                 </div>
               </div>
 
-              {b.status === "booked" && (
+              {(b.status === "booked" || b.status === "cancel_requested") && (
                 <div className="flex flex-col gap-2 flex-shrink-0 relative z-10">
                   <button
                     onClick={() => showQR(b.id)}
@@ -162,20 +162,22 @@ export default function HistoryPage() {
                   >
                     Show QR
                   </button>
-                  {new Date() < new Date(b.closes_at) ? (
-                    <button
-                      onClick={() => handleCancel(b.id)}
-                      className="px-4 py-2 rounded-xl border border-error/30 text-error text-xs font-bold hover:bg-error/10 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleRequestCancel(b.id)}
-                      className="px-4 py-2 rounded-xl border border-warning/30 text-warning text-xs font-bold hover:bg-warning/10 transition-colors"
-                    >
-                      Req Cancel
-                    </button>
+                  {b.status === "booked" && (
+                    new Date() < new Date(b.closes_at) ? (
+                      <button
+                        onClick={() => handleCancel(b.id)}
+                        className="px-4 py-2 rounded-xl border border-error/30 text-error text-xs font-bold hover:bg-error/10 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleRequestCancel(b.id)}
+                        className="px-4 py-2 rounded-xl border border-warning/30 text-warning text-xs font-bold hover:bg-warning/10 transition-colors"
+                      >
+                        Req Cancel
+                      </button>
+                    )
                   )}
                 </div>
               )}

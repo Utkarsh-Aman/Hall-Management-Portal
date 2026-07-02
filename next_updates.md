@@ -13,3 +13,14 @@ where links can be given with discription
 like a notice board for hall 12
 
 can scanning produce a sound of any type for successful and wrong scan
+
+
+--------------------------------------------------
+================================================
+after final deployment at 1 pm after lunch on bilk upload by ashish changed that i have not pushed are as follows
+1.show info of profile to student in profile tab alongh with change password buttton 
+
+done=======
+2.on invalid credential or it does not auto maatically log out the use and redirect to login screen but stuck and let click buttons and pop invalid credentials 
+3.when a cancell request is the or button vanishes which should not as if user thinks it will not be cancelled can still show and eat out
+done========

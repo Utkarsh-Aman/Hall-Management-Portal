@@ -96,6 +96,9 @@ class UserBrief(BaseModel):
     identifier: str
     name: str
     role: str
+    email: str | None = None
+    roll_no: str | None = None
+    room_no: str | None = None
 
     model_config = {"from_attributes": True}
 

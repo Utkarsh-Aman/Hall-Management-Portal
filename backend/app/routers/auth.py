@@ -226,6 +226,9 @@ def set_password(body: SetPasswordRequest, response: Response, db: Session = Dep
             identifier=user.identifier,
             name=user.name,
             role=user.role.value,
+            email=user.email,
+            roll_no=user.roll_no,
+            room_no=user.room_no,
         ),
     )
 
@@ -298,6 +301,9 @@ def login(body: LoginRequest, response: Response, db: Session = Depends(get_db))
             identifier=user.identifier,
             name=user.name,
             role=user.role.value,
+            email=user.email,
+            roll_no=user.roll_no,
+            room_no=user.room_no,
         ),
     )
 
@@ -349,6 +355,9 @@ def change_password(body: ChangePasswordRequest, response: Response, db: Session
             identifier=user.identifier,
             name=user.name,
             role=user.role.value,
+            email=user.email,
+            roll_no=user.roll_no,
+            room_no=user.room_no,
         ),
     )
 

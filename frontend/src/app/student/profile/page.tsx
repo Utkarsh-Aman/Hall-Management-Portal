@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
+import { useAuth } from "@/lib/auth";
 
 export default function ProfilePage() {
   const [oldPassword, setOldPassword] = useState("");
@@ -11,6 +12,7 @@ export default function ProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +51,37 @@ export default function ProfilePage() {
     <div className="max-w-md mx-auto space-y-6">
       <h1 className="text-xl font-bold text-text-primary">Profile</h1>
       
+      {user && (
+        <div className="glass-card p-6 space-y-4 rounded-xl">
+          <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-2">
+            Personal Details
+          </h2>
+          
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-medium text-text-muted">Name</p>
+              <p className="text-sm font-semibold text-text-primary">{user.name || "N/A"}</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-medium text-text-muted">Roll Number</p>
+                <p className="text-sm font-semibold text-text-primary">{user.roll_no || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-text-muted">Room Number</p>
+                <p className="text-sm font-semibold text-text-primary">{user.room_no || "N/A"}</p>
+              </div>
+            </div>
+            
+            <div>
+              <p className="text-xs font-medium text-text-muted">Email</p>
+              <p className="text-sm font-semibold text-text-primary">{user.email || user.identifier || "N/A"}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="glass-card p-6 space-y-5 rounded-xl">
         <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider">
           Change Password

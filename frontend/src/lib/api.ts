@@ -66,6 +66,12 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && !skipAuth) {
+      accessToken = null;
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
     const errorData = await response.json().catch(() => ({}));
     const error = new Error(
       errorData.detail || `API error: ${response.status}`
