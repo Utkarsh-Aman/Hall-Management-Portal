@@ -27,12 +27,12 @@ def scan_qr(
 ):
     now = datetime.now(timezone.utc)
 
-    # Atomic conditional update: only succeeds if status is still 'booked'
+    # Atomic conditional update: only succeeds if status is still 'booked' or 'cancel_requested'
     rows_updated = (
         db.query(ExtrasBooking)
         .filter(
             ExtrasBooking.qr_token == body.qr_token,
-            ExtrasBooking.status == BookingStatus.booked,
+            ExtrasBooking.status.in_([BookingStatus.booked, BookingStatus.cancel_requested]),
         )
         .update(
             {
@@ -96,7 +96,7 @@ def todays_bookings(
         db.query(ExtrasBooking)
         .filter(
             ExtrasBooking.booked_at >= today_start,
-            ExtrasBooking.status == BookingStatus.booked,
+            ExtrasBooking.status.in_([BookingStatus.booked, BookingStatus.cancel_requested]),
         )
         .order_by(ExtrasBooking.booked_at.asc())
         .all()
