@@ -24,10 +24,21 @@ export function getDayName(dayOfWeek: number, short = false): string {
 }
 
 /**
+ * Parse an API date string safely as UTC if it doesn't have timezone info.
+ */
+export function parseApiDate(dateStr: string): Date {
+  if (!dateStr) return new Date();
+  if (dateStr.includes("T") && !dateStr.endsWith("Z")) {
+    return new Date(dateStr + "Z");
+  }
+  return new Date(dateStr);
+}
+
+/**
  * Format a date string to a readable format.
  */
 export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseApiDate(dateStr);
   return date.toLocaleDateString("en-IN", {
     weekday: "short",
     day: "numeric",
@@ -40,7 +51,7 @@ export function formatDate(dateStr: string): string {
  * Format a datetime string to a readable format.
  */
 export function formatDateTime(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseApiDate(dateStr);
   return date.toLocaleString("en-IN", {
     weekday: "short",
     day: "numeric",
@@ -59,7 +70,7 @@ export function formatTime(timeStr: string): string {
   
   let hours, minutes;
   if (timeStr.includes("T")) {
-    const d = new Date(timeStr);
+    const d = parseApiDate(timeStr);
     hours = d.getHours();
     minutes = d.getMinutes();
   } else {

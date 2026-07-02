@@ -139,3 +139,13 @@ See `PROJECT.md` for the full API specification. Key route groups:
 - **Recurring extras:** APScheduler runs inside the FastAPI process, checking hourly for items to recreate on their designated weekday. For production, swap to an external cron or Celery beat.
 - **Email in dev:** OTPs are logged to the console. Set `SMTP_*` env vars for real email delivery.
 - **Rate limiting:** In-memory (single-process). For multi-process production, use Redis.
+
+eat: comprehensive optimizations, UX improvements, and timezone fixes
+- **Optimization:** Overhauled student history fetching by introducing `start_date` and `end_date` parameters to `/bookings/me`, defaulting to today and future items for instant loading.
+- **Optimization:** Replaced iterative running total calculations with a lightning-fast aggregate SQL `SUM()` query in the backend.
+- **Feature:** Added a `/bookings/me/export` endpoint, enabling students to download their full history as a CSV file.
+- **UI/UX:** Added "Load Older Records" and "Download CSV" buttons to the student history view.
+- **UI/UX:** Replaced the simple browser popup with a custom "Type CONFIRM" modal for the mess staff's "Mark Missed Meals" action to prevent accidental triggers.
+- **UI/UX:** Added dynamic "OPEN" tags, a text search bar, and status filtering dropdowns to the staff extras items page.
+- **Bug Fix:** Fixed a massive local timezone parsing bug across the app by creating a global `parseApiDate` utility that correctly assigns UTC contexts to naive timestamps coming from FastAPI.
+- **Chore:** Resolved compilation duplicate declaration errors and cleaned up unused imports for a strict production-ready build.

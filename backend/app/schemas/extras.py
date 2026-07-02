@@ -68,6 +68,8 @@ class BookingResponse(BaseModel):
     id: int
     item_id: int
     item_name: str = ""
+    item_date: dt_date | None = None
+    meal_type: str = ""
     qty: int
     total_price: Decimal
     status: str

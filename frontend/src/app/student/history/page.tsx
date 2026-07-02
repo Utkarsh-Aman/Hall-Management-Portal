@@ -7,8 +7,7 @@
 import React, { useEffect, useState } from "react";
 import { apiFetch, apiFetchBlob } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import { formatDateTime, formatPrice } from "@/lib/utils";
-import Image from "next/image";
+import { formatPrice, parseApiDate } from "@/lib/utils";
 import type { Booking, BookingListResponse } from "@/types";
 
 export default function HistoryPage() {
@@ -17,23 +16,55 @@ export default function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [qrBookingId, setQrBookingId] = useState<number | null>(null);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<Date>(() => new Date());
   const { toast } = useToast();
 
+  const fetchBookings = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const year = startDate.getFullYear();
+      const month = String(startDate.getMonth() + 1).padStart(2, '0');
+      const day = String(startDate.getDate()).padStart(2, '0');
+      const startStr = `${year}-${month}-${day}`;
+      
+      const data = await apiFetch<BookingListResponse>(`/bookings/me?start_date=${startStr}`);
+      setBookings(data.bookings);
+      setRunningTotal(data.running_total);
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast(error.message || "Failed to load bookings.", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [startDate, toast]);
+
   useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const data = await apiFetch<BookingListResponse>("/bookings/me");
-        setBookings(data.bookings);
-        setRunningTotal(data.running_total);
-      } catch (err: unknown) {
-        const error = err as Error;
-        toast(error.message || "Failed to load bookings.", "error");
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchBookings();
-  }, [toast]);
+  }, [fetchBookings]);
+
+  const loadOlderRecords = () => {
+    setStartDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() - 30);
+      return newDate;
+    });
+  };
+
+  const handleDownloadCSV = async () => {
+    try {
+      const blob = await apiFetchBlob("/bookings/me/export");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "my_bookings_history.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      toast("Failed to download CSV.", "error");
+    }
+  };
 
   const showQR = async (bookingId: number) => {
     setQrBookingId(bookingId);
@@ -58,9 +89,7 @@ export default function HistoryPage() {
     try {
       await apiFetch(`/bookings/${bookingId}`, { method: "DELETE" });
       toast("Booking cancelled successfully.", "success");
-      const data = await apiFetch<BookingListResponse>("/bookings/me");
-      setBookings(data.bookings);
-      setRunningTotal(data.running_total);
+      fetchBookings();
     } catch (err: unknown) {
       toast((err as Error).message || "Failed to cancel booking.", "error");
     }
@@ -71,9 +100,7 @@ export default function HistoryPage() {
     try {
       await apiFetch(`/bookings/${bookingId}/request-cancel`, { method: "POST" });
       toast("Cancellation requested.", "success");
-      const data = await apiFetch<BookingListResponse>("/bookings/me");
-      setBookings(data.bookings);
-      setRunningTotal(data.running_total);
+      fetchBookings();
     } catch (err: unknown) {
       toast((err as Error).message || "Failed to request cancellation.", "error");
     }
@@ -100,9 +127,22 @@ export default function HistoryPage() {
         </span>
       </div>
 
-      <h1 className="text-lg font-bold text-text-primary mb-4">
-        Booking History
-      </h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-lg font-bold text-text-primary">
+          Booking History
+        </h1>
+        <button
+          onClick={handleDownloadCSV}
+          className="px-3 py-1.5 rounded-xl border border-border text-text-secondary text-xs hover:bg-bg-surface-hover transition-colors flex items-center gap-2"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Download CSV
+        </button>
+      </div>
 
       {bookings.length === 0 ? (
         <div className="glass-card p-8 rounded-xl text-center">
@@ -148,9 +188,16 @@ export default function HistoryPage() {
                     {formatPrice(b.total_price)}
                   </div>
                   <div className="w-1 h-1 rounded-full bg-border" />
-                  <div className="text-xs text-text-muted">
-                    {new Date(b.booked_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  <div className="text-xs font-medium text-text-primary capitalize">
+                    {b.meal_type}
                   </div>
+                  <div className="w-1 h-1 rounded-full bg-border" />
+                  <div className="text-xs text-text-primary">
+                    {b.item_date ? new Date(b.item_date).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" }) : "N/A"}
+                  </div>
+                </div>
+                <div className="text-[10px] text-text-muted mt-1">
+                  Booked on {new Date(b.booked_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
 
@@ -163,7 +210,7 @@ export default function HistoryPage() {
                     Show QR
                   </button>
                   {b.status === "booked" && (
-                    new Date() < new Date(b.closes_at) ? (
+                    new Date() < parseApiDate(b.closes_at) ? (
                       <button
                         onClick={() => handleCancel(b.id)}
                         className="px-4 py-2 rounded-xl border border-error/30 text-error text-xs font-bold hover:bg-error/10 transition-colors"
@@ -183,6 +230,17 @@ export default function HistoryPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+      
+      {!isLoading && (
+        <div className="mt-6 text-center">
+          <button
+            onClick={loadOlderRecords}
+            className="px-6 py-2.5 rounded-xl border border-border text-text-secondary text-sm font-semibold hover:bg-bg-surface-hover hover:text-text-primary transition-all duration-300"
+          >
+            Load Older Records
+          </button>
         </div>
       )}
 

@@ -13,7 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models.extras import ExtrasItem, ExtrasBooking, BookingStatus
+from app.models.extras import ExtrasItem, ExtrasBooking, BookingStatus, MealType
 
 logger = logging.getLogger(__name__)
 
@@ -98,30 +98,50 @@ def recreate_recurring_items() -> None:
 
 def mark_missed_bookings() -> None:
     """
-    Mark bookings as missed if they are still 'booked' and the meal window has passed.
-    We assume the meal is definitively over 4 hours after the booking closing time.
+    Mark bookings as missed if they are still 'booked' or 'cancel_requested' and the meal window has passed.
+    Meal cutoffs (IST):
+    - Breakfast: 9:30 AM
+    - Lunch: 2:30 PM (14:30)
+    - Dinner: 9:30 PM (21:30)
     """
     db: Session = SessionLocal()
     try:
-        from datetime import timedelta
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        # Find bookings where item closes_at was more than 4 hours ago and status is 'booked'
-        cutoff_time = now - timedelta(hours=4)
+        from zoneinfo import ZoneInfo
+        from datetime import datetime, time
         
-        overdue_bookings = (
+        ist = ZoneInfo("Asia/Kolkata")
+        now_ist = datetime.now(ist)
+        today = now_ist.date()
+        current_time = now_ist.time()
+        
+        # Find all 'booked' or 'cancel_requested' bookings
+        pending_bookings = (
             db.query(ExtrasBooking)
             .join(ExtrasItem)
-            .filter(
-                ExtrasBooking.status == BookingStatus.booked,
-                ExtrasItem.closes_at < cutoff_time
-            )
+            .filter(ExtrasBooking.status.in_([BookingStatus.booked, BookingStatus.cancel_requested]))
             .all()
         )
         
         count = 0
-        for booking in overdue_bookings:
-            booking.status = BookingStatus.missed
-            count += 1
+        for booking in pending_bookings:
+            item = booking.item
+            is_missed = False
+            
+            # If the item date is strictly in the past, it's definitively missed
+            if item.date < today:
+                is_missed = True
+            elif item.date == today:
+                # Check specific time cutoffs for today's meals
+                if item.meal_type == MealType.breakfast and current_time >= time(9, 30):
+                    is_missed = True
+                elif item.meal_type == MealType.lunch and current_time >= time(14, 30):
+                    is_missed = True
+                elif item.meal_type == MealType.dinner and current_time >= time(21, 30):
+                    is_missed = True
+            
+            if is_missed:
+                booking.status = BookingStatus.missed
+                count += 1
             
         if count > 0:
             logger.info(f"Marked {count} bookings as missed.")

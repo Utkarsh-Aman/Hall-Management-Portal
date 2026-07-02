@@ -6,8 +6,12 @@ from datetime import datetime, timezone
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import Response as RawResponse
+from fastapi.responses import Response as RawResponse, StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+import io
+import csv
+from datetime import date
 
 from app.dependencies import get_db, require_role
 from app.models.extras import BookingStatus, ExtrasBooking, ExtrasItem
@@ -66,6 +70,8 @@ def create_booking(
         id=booking.id,
         item_id=booking.item_id,
         item_name=item.name,
+        item_date=item.date,
+        meal_type=item.meal_type.value,
         qty=booking.qty,
         total_price=booking.total_price,
         status=booking.status.value,
@@ -81,41 +87,94 @@ def create_booking(
 
 @router.get("/me", response_model=BookingListResponse)
 def get_my_bookings(
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
     current_user: User = Depends(require_role("student")),
     db: Session = Depends(get_db),
 ):
-    bookings = (
+    query = (
         db.query(ExtrasBooking)
+        .join(ExtrasItem)
         .filter(ExtrasBooking.student_id == current_user.id)
         .order_by(ExtrasBooking.booked_at.desc())
-        .all()
     )
+    
+    if start_date:
+        query = query.filter(ExtrasItem.date >= start_date)
+    if end_date:
+        query = query.filter(ExtrasItem.date <= end_date)
+        
+    bookings = query.all()
+
+    # Calculate global running total
+    running_total = (
+        db.query(func.sum(ExtrasBooking.total_price))
+        .filter(
+            ExtrasBooking.student_id == current_user.id,
+            ExtrasBooking.status.not_in([BookingStatus.cancelled, BookingStatus.cancel_requested])
+        )
+        .scalar()
+    ) or 0
 
     result = []
-    running_total = 0
-
     for b in bookings:
-        item = db.query(ExtrasItem).filter(ExtrasItem.id == b.item_id).first()
+        item = b.item
         result.append(
             BookingResponse(
                 id=b.id,
                 item_id=b.item_id,
-                item_name=item.name if item else "Unknown",
+                item_name=item.name,
+                item_date=item.date,
+                meal_type=item.meal_type.value,
                 qty=b.qty,
                 total_price=b.total_price,
                 status=b.status.value,
                 qr_token=b.qr_token,
                 booked_at=b.booked_at,
                 qr_used_at=b.qr_used_at,
-                closes_at=item.closes_at if item else b.booked_at,
+                closes_at=item.closes_at,
             )
         )
-        if b.status not in (BookingStatus.cancelled, BookingStatus.cancel_requested):
-            running_total += float(b.total_price)
 
     return BookingListResponse(
         bookings=result,
         running_total=running_total,
+    )
+
+@router.get("/me/export")
+def export_my_bookings(
+    current_user: User = Depends(require_role("student")),
+    db: Session = Depends(get_db),
+):
+    bookings = (
+        db.query(ExtrasBooking)
+        .join(ExtrasItem)
+        .filter(ExtrasBooking.student_id == current_user.id)
+        .order_by(ExtrasItem.date.desc(), ExtrasBooking.booked_at.desc())
+        .all()
+    )
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Meal", "Item", "Quantity", "Price (INR)", "Status", "Booked At"])
+    
+    for b in bookings:
+        item = b.item
+        writer.writerow([
+            item.date,
+            item.meal_type.value.capitalize(),
+            item.name,
+            b.qty,
+            f"{b.total_price:.2f}",
+            b.status.value.upper(),
+            b.booked_at.strftime("%Y-%m-%d %H:%M")
+        ])
+        
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=my_bookings_history.csv"}
     )
 
 

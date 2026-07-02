@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import { formatTime, formatPrice } from "@/lib/utils";
+import { formatTime, formatPrice, parseApiDate } from "@/lib/utils";
 import type { ExtrasItem } from "@/types";
 
 export default function StaffItemsPage() {
@@ -23,6 +23,9 @@ export default function StaffItemsPage() {
   const [formCloses, setFormCloses] = useState("14:30");
   const [formRecurring, setFormRecurring] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   
   const [bulkDeleteId, setBulkDeleteId] = useState<number | null>(null);
   const [bulkDeletePassword, setBulkDeletePassword] = useState("");
@@ -68,7 +71,7 @@ export default function StaffItemsPage() {
     // Extract HH:MM from ISO string closes_at
     let closesTime = "14:30";
     if (item.closes_at) {
-      const d = new Date(item.closes_at);
+      const d = parseApiDate(item.closes_at);
       closesTime = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
     }
     setFormCloses(closesTime);
@@ -276,60 +279,126 @@ export default function StaffItemsPage() {
           <p className="text-text-muted text-sm">No items yet. Create one above!</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className={`glass-card p-3.5 rounded-xl flex items-center justify-between gap-3 ${
-                !item.is_active ? "opacity-50" : ""
-              }`}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="text-sm font-semibold text-text-primary truncate">
-                    {item.name}
-                  </h3>
-                  <span className="text-xs font-bold text-accent">
-                    {formatPrice(item.price)}
-                  </span>
-                  {!item.is_active && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-error-bg text-error">
-                      INACTIVE
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-text-muted">
-                  {item.date} · {item.meal_type.toUpperCase()} · Book by: {formatTime(item.closes_at)}
-                  {item.is_recurring ? ` · Recurring` : ""}
-                </p>
-              </div>
-              <div className="flex gap-1.5 flex-shrink-0">
+        <>
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <div className="flex-1 min-w-[200px] relative">
+              <input
+                type="text"
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-4 pr-10 py-2 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary focus:outline-none focus:border-accent shadow-sm"
+              />
+              {searchQuery && (
                 <button
-                  onClick={() => openEditForm(item)}
-                  className="px-2.5 py-1.5 rounded-lg border border-border text-text-secondary text-xs hover:bg-bg-surface-hover transition-colors"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
                 >
-                  Edit
+                  ✕
                 </button>
-                {item.is_active && (
-                  <>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="px-2.5 py-1.5 rounded-lg border border-error/30 text-error text-xs hover:bg-error-bg transition-colors"
-                    >
-                      Delete
-                    </button>
-                    <button
-                      onClick={() => setBulkDeleteId(item.id)}
-                      className="px-2.5 py-1.5 rounded-lg border border-warning/30 text-warning text-xs hover:bg-warning-bg transition-colors"
-                    >
-                      Clear Bookings
-                    </button>
-                  </>
-                )}
-              </div>
+              )}
             </div>
-          ))}
-        </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary focus:outline-none focus:border-accent shadow-sm"
+            >
+              <option value="all">All Items</option>
+              <option value="open">Open for Booking</option>
+              <option value="closed">Closed / Past</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            {(() => {
+              const now = new Date();
+              const filteredItems = items.filter((item) => {
+                if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                
+                const opensAt = parseApiDate(item.opens_at);
+                const closesAt = parseApiDate(item.closes_at);
+                const isOpen = now >= opensAt && now < closesAt;
+                
+                if (statusFilter === "open" && !isOpen) return false;
+                if (statusFilter === "closed" && isOpen) return false;
+                
+                return true;
+              });
+
+              if (filteredItems.length === 0) {
+                return (
+                  <div className="glass-card p-8 rounded-xl text-center">
+                    <p className="text-text-muted text-sm">No items match your filters.</p>
+                  </div>
+                );
+              }
+
+              return filteredItems.map((item) => {
+                const opensAt = parseApiDate(item.opens_at);
+                const closesAt = parseApiDate(item.closes_at);
+                const isOpen = now >= opensAt && now < closesAt;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`glass-card p-3.5 rounded-xl flex items-center justify-between gap-3 ${
+                      !item.is_active ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="text-sm font-semibold text-text-primary truncate">
+                          {item.name}
+                        </h3>
+                        <span className="text-xs font-bold text-accent">
+                          {formatPrice(item.price)}
+                        </span>
+                        {isOpen && item.is_active && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-success-bg text-success">
+                            OPEN
+                          </span>
+                        )}
+                        {!item.is_active && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-error-bg text-error">
+                            INACTIVE
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-text-muted">
+                        {item.date} · {item.meal_type.toUpperCase()} · Book by: {formatTime(item.closes_at)}
+                        {item.is_recurring ? ` · Recurring` : ""}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => openEditForm(item)}
+                        className="px-2.5 py-1.5 rounded-lg border border-border text-text-secondary text-xs hover:bg-bg-surface-hover transition-colors"
+                      >
+                        Edit
+                      </button>
+                      {item.is_active && (
+                        <>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="px-2.5 py-1.5 rounded-lg border border-error/30 text-error text-xs hover:bg-error-bg transition-colors"
+                          >
+                            Delete
+                          </button>
+                          <button
+                            onClick={() => setBulkDeleteId(item.id)}
+                            className="px-2.5 py-1.5 rounded-lg border border-warning/30 text-warning text-xs hover:bg-warning-bg transition-colors"
+                          >
+                            Clear Bookings
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </>
       )}
       {/* Bulk Delete Modal */}
       {bulkDeleteId !== null && (

@@ -145,6 +145,14 @@ def delete_item(
 # View all bookings (mess_staff)
 # ---------------------------------------------------------------------------
 
+@router.post("/bookings/trigger-missed")
+def trigger_missed_bookings(
+    current_user: User = Depends(require_role("mess_staff")),
+):
+    from app.services.scheduler import mark_missed_bookings
+    mark_missed_bookings()
+    return {"message": "Successfully ran the missed bookings check for past meals."}
+
 @router.delete("/bookings/{booking_id}")
 def delete_booking_staff(
     booking_id: int,

@@ -54,6 +54,8 @@ export interface Booking {
   id: number;
   item_id: number;
   item_name: string;
+  item_date: string | null;
+  meal_type: string;
   qty: number;
   total_price: number;
   status: "booked" | "served" | "missed" | "cancelled" | "cancel_requested";

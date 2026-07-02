@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import { formatDateTime, formatPrice } from "@/lib/utils";
+import { parseApiDate } from "@/lib/utils";
 import type { StaffBooking } from "@/types";
 
 export default function StaffBookingsPage() {
@@ -23,6 +23,11 @@ export default function StaffBookingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mealFilter, setMealFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  
+  const [showMissedModal, setShowMissedModal] = useState(false);
+  const [missedConfirmText, setMissedConfirmText] = useState("");
+  const [isTriggeringMissed, setIsTriggeringMissed] = useState(false);
+  
   const { toast } = useToast();
 
   const fetchBookings = async () => {
@@ -71,11 +76,41 @@ export default function StaffBookingsPage() {
     }
   };
 
+  const handleTriggerMissed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (missedConfirmText !== "CONFIRM") return;
+    
+    setIsTriggeringMissed(true);
+    try {
+      await apiFetch("/staff/bookings/trigger-missed", { method: "POST" });
+      toast("Missed bookings updated successfully.", "success");
+      setShowMissedModal(false);
+      setMissedConfirmText("");
+      fetchBookings();
+    } catch (err: unknown) {
+      toast((err as Error).message || "Failed to trigger missed bookings.", "error");
+    } finally {
+      setIsTriggeringMissed(false);
+    }
+  };
+
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-lg font-bold text-text-primary mb-4">
-        All Bookings
-      </h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-lg font-bold text-text-primary">
+          All Bookings
+        </h1>
+        <button
+          onClick={() => {
+            setMissedConfirmText("");
+            setShowMissedModal(true);
+          }}
+          className="px-4 py-2 rounded-xl border border-warning/30 text-warning bg-warning/10 text-xs font-bold hover:bg-warning/20 transition-colors"
+          title="Mark missed items whose meal cutoff time has passed."
+        >
+          Mark Missed Meals
+        </button>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -161,7 +196,7 @@ export default function StaffBookingsPage() {
           {/* Active Bookings (Window Open) */}
           {Object.keys(
             bookings.reduce((acc, b) => {
-              if (new Date() <= new Date(b.closes_at) && b.status === "booked") {
+              if (new Date() <= parseApiDate(b.closes_at) && b.status === "booked") {
                 const key = `${b.meal_type.toUpperCase()} - ${b.item_name}`;
                 acc[key] = (acc[key] || 0) + b.qty;
               }
@@ -173,7 +208,7 @@ export default function StaffBookingsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {Object.entries(
                   bookings.reduce((acc, b) => {
-                    if (new Date() <= new Date(b.closes_at) && b.status === "booked") {
+                    if (new Date() <= parseApiDate(b.closes_at) && b.status === "booked") {
                       const key = `${b.meal_type.toUpperCase()} - ${b.item_name}`;
                       acc[key] = (acc[key] || 0) + b.qty;
                     }
@@ -192,7 +227,7 @@ export default function StaffBookingsPage() {
           {/* Finalized Targets (Window Closed) */}
           {Object.keys(
             bookings.reduce((acc, b) => {
-              if (new Date() > new Date(b.closes_at) && b.status !== "cancelled") {
+              if (new Date() > parseApiDate(b.closes_at) && b.status !== "cancelled") {
                 const key = `${b.meal_type.toUpperCase()} - ${b.item_name}`;
                 acc[key] = (acc[key] || 0) + b.qty;
               }
@@ -204,7 +239,7 @@ export default function StaffBookingsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {Object.entries(
                   bookings.reduce((acc, b) => {
-                    if (new Date() > new Date(b.closes_at) && b.status !== "cancelled") {
+                    if (new Date() > parseApiDate(b.closes_at) && b.status !== "cancelled") {
                       const key = `${b.meal_type.toUpperCase()} - ${b.item_name}`;
                       acc[key] = (acc[key] || 0) + b.qty;
                     }
@@ -298,6 +333,44 @@ export default function StaffBookingsPage() {
       </>
     );
     })()}
+    
+      {/* Mark Missed Modal */}
+      {showMissedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMissedModal(false)} />
+          <form onSubmit={handleTriggerMissed} className="relative glass-card p-6 rounded-2xl w-full max-w-sm">
+            <h2 className="text-lg font-bold text-error mb-2">Mark Missed Meals</h2>
+            <p className="text-sm text-text-muted mb-4">
+              This will manually mark all pending bookings as &apos;missed&apos; if their meal cutoff time has passed (Breakfast: 9:30 AM, Lunch: 2:30 PM, Dinner: 9:30 PM).<br/><br/>
+              To proceed, type <strong>CONFIRM</strong> below.
+            </p>
+            <input
+              type="text"
+              placeholder="Type CONFIRM"
+              value={missedConfirmText}
+              onChange={(e) => setMissedConfirmText(e.target.value)}
+              required
+              className="w-full px-3 py-2 mb-4 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary focus:outline-none focus:border-error input-glow"
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowMissedModal(false)}
+                className="flex-1 py-2 rounded-xl border border-border text-text-secondary text-sm hover:bg-bg-surface-hover transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={missedConfirmText !== "CONFIRM" || isTriggeringMissed}
+                className="flex-1 py-2 rounded-xl bg-error hover:bg-error-hover text-white text-sm font-bold disabled:opacity-50 transition-colors"
+              >
+                {isTriggeringMissed ? "Running..." : "Mark Missed"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
