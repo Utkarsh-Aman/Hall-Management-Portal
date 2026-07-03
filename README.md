@@ -12,6 +12,67 @@ Hall Management Portal for IIT Kanpur Hall of Residence XII (Marathas). Students
 | Auth | Custom JWT (access + refresh tokens), bcrypt |
 | QR | `qrcode` (Python) for generation, `html5-qrcode` (JS) for scanning |
 
+## Architecture Diagram
+
+```mermaid
+flowchart TD
+    %% Users
+    Student([Student])
+    MessStaff([Mess Staff])
+    MessWorker([Mess Worker])
+    HallOffice([Hall Office Admin])
+
+    %% Frontend App
+    subgraph Frontend [Next.js Frontend / App Router]
+        UI_Student[Student Dashboard\n& Extras Booking]
+        UI_Staff[Staff Admin Panel\n& CSV Reports]
+        UI_Worker[Worker QR Scanner\nwith Audio Feedback]
+        UI_Office[Hall Office Panel\nBulk Onboarding]
+    end
+
+    %% User Interactions
+    Student --> |Browse Menu, Book Extras, View QR| UI_Student
+    MessStaff --> |Manage Menu, Items, Wastage, Notices| UI_Staff
+    MessWorker --> |Scan QR Codes, View Queue| UI_Worker
+    HallOffice --> |Upload Roll CSV, Manage Staff| UI_Office
+
+    %% Backend API
+    subgraph Backend [FastAPI Backend]
+        Router_Auth[Auth Router\nJWT & bcrypt]
+        Router_Student[Student Routers\nBookings & Dashboard]
+        Router_Staff[Staff Routers\nItems & Menu CRUD]
+        Router_Worker[Worker Router\nQR Verification]
+        Router_Office[Hall Office Router\nCSV Processing]
+        
+        Service_Scheduler[APScheduler\nRecurring Items]
+        Service_Email[Email Service\nOTP & Setup]
+    end
+
+    %% API connections
+    UI_Student --> |HTTPS / JSON| Router_Student
+    UI_Staff --> |HTTPS / JSON| Router_Staff
+    UI_Worker --> |HTTPS / JSON| Router_Worker
+    UI_Office --> |HTTPS / JSON| Router_Office
+    Frontend -.-> |Auth / Refresh| Router_Auth
+    
+    %% Internal Backend Connections
+    Router_Auth --> Service_Email
+
+    %% DB Connections
+    DB[(PostgreSQL\nvia Supabase\nSQLAlchemy ORM)]
+    
+    Router_Auth <--> |User Data| DB
+    Router_Student <--> |Bookings & History| DB
+    Router_Staff <--> |Menu & Items| DB
+    Router_Worker <--> |Verify & Update Status| DB
+    Router_Office <--> |Bulk Insert| DB
+    Service_Scheduler <--> |Check & Recreate Items| DB
+
+    %% External
+    SMTP[SMTP Server]
+    Service_Email --> |Send Reset Emails| SMTP
+```
+
 ## Quick Start
 
 ### Prerequisites
