@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiFetchBlob } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import type { AllowedRollResponse, RollNumberUploadResponse } from "@/types";
 
@@ -125,15 +125,41 @@ export default function RollNumbersPage() {
     }
   };
 
+  const handleDownloadSetup = async () => {
+    try {
+      const blob = await apiFetchBlob("/hall-office/roll-numbers/export-setup");
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "student_setup_codes.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast("Setup codes downloaded successfully.", "success");
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast(error.message || "Failed to download setup codes", "error");
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-xl font-bold text-text-primary mb-2">
-          Manage Roll Numbers
-        </h1>
-        <p className="text-sm text-text-muted">
-          Upload a CSV to bulk-replace all records, or manage individual records below.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-text-primary mb-2">
+            Manage Roll Numbers
+          </h1>
+          <p className="text-sm text-text-muted">
+            Upload a CSV to bulk-replace all records, or manage individual records below.
+          </p>
+        </div>
+        <button
+          onClick={handleDownloadSetup}
+          className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-accent/20"
+        >
+          Download Setup Codes
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,7 +1,10 @@
 "use client";
 
 /**
- * Student Setup — Step 1: Roll No + Setup Code → Step 2: Set password & details.
+ * Forgot Password flow.
+ * Step 1: Email → Request OTP
+ * Step 2: Verify OTP
+ * Step 3: Set new password
  */
 
 import React, { useState } from "react";
@@ -9,63 +12,80 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getRoleHome } from "@/lib/auth";
 import { useToast } from "@/components/ui/Toast";
 import type { LoginResponse } from "@/types";
 
-type Step = "verify" | "password";
+type Step = "email" | "otp" | "password";
 
-export default function SignupPage() {
-  const [step, setStep] = useState<Step>("verify");
-  const [rollNo, setRollNo] = useState("");
-  const [setupCode, setSetupCode] = useState("");
-  
+export default function ForgotPasswordPage() {
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState("");
-  const [roomNo, setRoomNo] = useState("");
-  const [email, setEmail] = useState(""); // purely for display
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { setUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
-  // Step 1: Verify Setup Code
-  const handleVerify = async (e: React.FormEvent) => {
+  // Step 1: Request OTP
+  const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rollNo.trim() || setupCode.length !== 8) return;
+    if (!email.trim()) return;
 
     setIsSubmitting(true);
     try {
-      const data = await apiFetch<{ name?: string; room_no?: string; email?: string }>(
-        "/auth/setup/verify",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            roll_no: rollNo.trim(),
-            setup_code: setupCode.trim(),
-          }),
-          skipAuth: true,
-        }
-      );
-      
-      if (data.name) setName(data.name);
-      if (data.room_no) setRoomNo(data.room_no);
-      if (data.email) setEmail(data.email);
-      
-      toast("Setup code verified!", "success");
-      setStep("password");
+      await apiFetch("/auth/forgot-password/request-otp", {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim(),
+        }),
+        skipAuth: true,
+      });
+      toast("If the email is registered, an OTP has been sent.", "success");
+      setStep("otp");
     } catch (err: unknown) {
       const error = err as Error;
-      toast(error.message || "Invalid setup code.", "error");
+      toast(error.message || "Failed to send OTP.", "error");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Step 2: Set password
-  const handleSetPassword = async (e: React.FormEvent) => {
+  // Step 2: Verify OTP
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otp.length !== 6) return;
+
+    setIsSubmitting(true);
+    try {
+      const data = await apiFetch<{ reset_token: string }>(
+        "/auth/forgot-password/verify-otp",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            email: email.trim(),
+            otp,
+          }),
+          skipAuth: true,
+        }
+      );
+      setResetToken(data.reset_token);
+      toast("OTP verified!", "success");
+      setStep("password");
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast(error.message || "Invalid OTP.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Step 3: Set new password
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) {
       toast("Password must be at least 8 characters.", "warning");
@@ -75,40 +95,33 @@ export default function SignupPage() {
       toast("Passwords do not match.", "warning");
       return;
     }
-    if (!name.trim()) {
-      toast("Name is required.", "warning");
-      return;
-    }
 
     setIsSubmitting(true);
     try {
-      const data = await apiFetch<LoginResponse>("/auth/setup/complete", {
+      const data = await apiFetch<LoginResponse>("/auth/forgot-password/reset-password", {
         method: "POST",
         body: JSON.stringify({
-          roll_no: rollNo.trim(),
-          setup_code: setupCode.trim(),
-          password,
-          name: name.trim(),
-          room_no: roomNo.trim() || null,
+          reset_token: resetToken,
+          new_password: password,
         }),
         skipAuth: true,
       });
 
       setUser(data.user, data.access_token);
 
-      toast("Account created! Welcome to Hall 12.", "success");
-      router.push("/student/dashboard");
+      toast("Password reset successfully!", "success");
+      router.push(getRoleHome(data.user.role));
     } catch (err: unknown) {
       const error = err as Error;
-      toast(error.message || "Failed to set password.", "error");
+      toast(error.message || "Failed to reset password.", "error");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // Step indicators
-  const steps = ["Verify Code", "Profile"];
-  const currentIdx = step === "verify" ? 0 : 1;
+  const steps = ["Email", "Verify", "New Password"];
+  const currentIdx = step === "email" ? 0 : step === "otp" ? 1 : 2;
 
   return (
     <div className="flex-1 flex items-center justify-center min-h-screen px-4 py-8">
@@ -124,7 +137,7 @@ export default function SignupPage() {
             priority
           />
           <h1 className="text-lg font-bold text-text-primary">
-            Student Account Setup
+            Forgot Password
           </h1>
         </div>
 
@@ -152,101 +165,106 @@ export default function SignupPage() {
           ))}
         </div>
 
-        {/* Step 1: Verify Code */}
-        {step === "verify" && (
+        {/* Step 1: Details */}
+        {step === "email" && (
           <form
-            onSubmit={handleVerify}
+            onSubmit={handleRequestOTP}
             className="glass-card p-6 space-y-5 animate-fade-in"
           >
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Roll Number
+              <label
+                htmlFor="email"
+                className="block text-xs font-medium text-text-secondary mb-1.5"
+              >
+                Registered Email
               </label>
               <input
-                type="text"
-                value={rollNo}
-                onChange={(e) => setRollNo(e.target.value)}
-                placeholder="e.g. 230001"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. utkarsh24@iitk.ac.in"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent input-glow transition-colors"
                 required
               />
             </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? "Sending OTP…" : "Send Reset Code"}
+            </button>
+            
+            <p className="text-center text-sm text-text-muted mt-4">
+              <Link
+                href="/login"
+                className="text-accent hover:text-accent-hover transition-colors font-medium"
+              >
+                Back to Login
+              </Link>
+            </p>
+          </form>
+        )}
+
+        {/* Step 2: OTP */}
+        {step === "otp" && (
+          <form
+            onSubmit={handleVerifyOTP}
+            className="glass-card p-6 space-y-5 animate-fade-in"
+          >
+            <p className="text-sm text-text-secondary text-center">
+              Enter the 6-digit reset code sent to{" "}
+              <span className="text-accent font-medium">{email.trim().toLowerCase()}</span>
+            </p>
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Setup Code (8 characters)
-              </label>
               <input
+                id="otp-input"
                 type="text"
-                value={setupCode}
-                onChange={(e) => setSetupCode(e.target.value.toUpperCase().slice(0, 8))}
-                placeholder="ABC123XY"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent input-glow transition-colors tracking-widest font-mono uppercase"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                onChange={(e) =>
+                  setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                placeholder="000000"
+                className="w-full px-3.5 py-3 rounded-xl bg-bg-elevated border border-border text-center text-2xl font-mono tracking-[0.3em] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent input-glow transition-colors"
+                autoFocus
                 required
               />
-              <p className="text-xs text-text-muted mt-2">
-                Check your email for the setup code provided by the Hall Office.
-              </p>
             </div>
             <button
               type="submit"
-              disabled={isSubmitting || setupCode.length !== 8 || !rollNo}
+              disabled={isSubmitting || otp.length !== 6}
               className="w-full py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors disabled:opacity-50"
             >
               {isSubmitting ? "Verifying…" : "Verify Code"}
             </button>
+            <button
+              type="button"
+              onClick={() => setStep("email")}
+              className="w-full py-2 text-sm text-text-muted hover:text-text-secondary transition-colors"
+            >
+              ← Back
+            </button>
           </form>
         )}
 
-        {/* Step 2: Password */}
+        {/* Step 3: Password */}
         {step === "password" && (
           <form
-            onSubmit={handleSetPassword}
+            onSubmit={handleResetPassword}
             className="glass-card p-6 space-y-4 animate-fade-in"
           >
             <p className="text-sm text-text-secondary text-center mb-2">
-              Complete your profile and set a password.
+              Set your new password.
             </p>
-            
-            {email && (
-              <div className="bg-bg-elevated/50 p-3 rounded-lg border border-border">
-                <p className="text-xs text-text-muted">Registered Email</p>
-                <p className="text-sm font-medium text-text-primary">{email}</p>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your Name"
-                  className="w-full px-3 py-2.5 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent input-glow transition-colors"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  Room Number
-                </label>
-                <input
-                  type="text"
-                  value={roomNo}
-                  onChange={(e) => setRoomNo(e.target.value)}
-                  placeholder="e.g. A-101"
-                  className="w-full px-3 py-2.5 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent input-glow transition-colors"
-                />
-              </div>
-            </div>
             <div>
               <label
                 htmlFor="new-password"
                 className="block text-xs font-medium text-text-secondary mb-1.5"
               >
-                Password (min 8 characters)
+                New Password (min 8 characters)
               </label>
               <input
                 id="new-password"
@@ -284,28 +302,10 @@ export default function SignupPage() {
               disabled={isSubmitting}
               className="w-full py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors disabled:opacity-50"
             >
-              {isSubmitting ? "Creating Account…" : "Create Account"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep("verify")}
-              className="w-full py-2 text-sm text-text-muted hover:text-text-secondary transition-colors"
-            >
-              ← Back
+              {isSubmitting ? "Resetting…" : "Reset Password"}
             </button>
           </form>
         )}
-
-        {/* Login link */}
-        <p className="text-center text-sm text-text-muted mt-6">
-          Already have an account?{" "}
-          <Link
-            href="/login"
-            className="text-accent hover:text-accent-hover transition-colors font-medium"
-          >
-            Log in
-          </Link>
-        </p>
       </div>
     </div>
   );

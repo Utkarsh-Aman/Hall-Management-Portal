@@ -18,17 +18,18 @@ from app.models.allowed_roll import AllowedRollNumber
 from app.models.user import User, UserRole
 from app.schemas.auth import (
     ChangePasswordRequest,
-    ChangePasswordRequest,
     LoginRequest,
     LoginResponse,
     MessageResponse,
     MustChangePasswordResponse,
     RefreshResponse,
-    RequestOTPRequest,
-    RequestOTPResponse,
-    SetPasswordRequest,
+    SetupVerifyRequest,
+    SetupVerifyResponse,
+    SetupCompleteRequest,
+    ForgotPasswordRequestOTP,
+    ForgotPasswordVerifyOTP,
+    ForgotPasswordReset,
     UserBrief,
-    VerifyOTPRequest,
     VerifyOTPResponse,
 )
 from app.services.auth_service import (
@@ -47,84 +48,158 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 # ---------------------------------------------------------------------------
-# Student signup — Step 1: Request OTP
+# Student Setup Flow (replaces old Signup)
 # ---------------------------------------------------------------------------
 
-@router.post("/signup/request-otp", response_model=RequestOTPResponse)
-def request_otp(body: RequestOTPRequest, db: Session = Depends(get_db)):
-    email = body.email.strip().lower()
-
-    # Check email is allowed
-    allowed = (
-        db.query(AllowedRollNumber)
-        .filter(AllowedRollNumber.email == email)
-        .first()
-    )
-    if not allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your email isn't recognized. Contact the hall office to be added.",
-        )
-
-    # Check if user already exists with this email and has set password
-    existing = db.query(User).filter(User.identifier == email).first()
-    if existing and existing.password_set:
+@router.post("/setup/verify", response_model=SetupVerifyResponse)
+def setup_verify(body: SetupVerifyRequest, db: Session = Depends(get_db)):
+    roll_no = body.roll_no.strip()
+    
+    # 1. Check if user is already registered
+    existing_user = db.query(User).filter(User.roll_no == roll_no).first()
+    if existing_user and existing_user.password_set:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists. Please log in.",
+            detail="An account with this roll number is already registered. Please log in.",
         )
+        
+    # 2. Check AllowedRollNumber for the setup code
+    allowed = db.query(AllowedRollNumber).filter(AllowedRollNumber.roll_no == roll_no).first()
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Roll number not found. Contact the hall office.",
+        )
+        
+    if not allowed.setup_code or allowed.setup_code != body.setup_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid setup code. Please check the code sent to your email.",
+        )
+        
+    return SetupVerifyResponse(
+        name=allowed.name,
+        email=allowed.email,
+        room_no=allowed.room_number
+    )
+
+
+@router.post("/setup/complete", response_model=LoginResponse)
+def setup_complete(body: SetupCompleteRequest, response: Response, db: Session = Depends(get_db)):
+    roll_no = body.roll_no.strip()
+    
+    # 1. Verify again
+    existing_user = db.query(User).filter(User.roll_no == roll_no).first()
+    if existing_user and existing_user.password_set:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account is already registered. Please log in.",
+        )
+        
+    allowed = db.query(AllowedRollNumber).filter(AllowedRollNumber.roll_no == roll_no).first()
+    if not allowed or not allowed.setup_code or allowed.setup_code != body.setup_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid setup code.",
+        )
+        
+    # 2. Create the User
+    if not existing_user:
+        user = User(
+            identifier=allowed.email or f"{roll_no}@student.iitk.ac.in",
+            email=allowed.email,
+            password_hash=hash_password(body.password),
+            role=UserRole.student,
+            name=body.name,
+            room_no=body.room_no,
+            roll_no=roll_no,
+            is_active=True,
+            password_set=True,
+            must_change_password=False,
+            otp_attempts=0,
+        )
+        db.add(user)
+    else:
+        user = existing_user
+        user.password_hash = hash_password(body.password)
+        user.password_set = True
+        user.name = body.name
+        user.room_no = body.room_no
+        
+    # 3. Clear the setup code
+    allowed.setup_code = None
+    db.commit()
+    db.refresh(user)
+    
+    # 4. Issue tokens
+    access_token = create_access_token(user.id, user.role.value)
+    refresh_token = create_refresh_token(user.id, user.role.value)
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60,  # 7 days
+        path="/",
+    )
+
+    return LoginResponse(
+        access_token=access_token,
+        user=UserBrief(
+            id=user.id,
+            identifier=user.identifier,
+            name=user.name,
+            role=user.role.value,
+            email=user.email,
+            roll_no=user.roll_no,
+            room_no=user.room_no,
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Forgot Password
+# ---------------------------------------------------------------------------
+
+@router.post("/forgot-password/request-otp")
+def forgot_password_request_otp(body: ForgotPasswordRequestOTP, db: Session = Depends(get_db)):
+    email = body.email.strip().lower()
 
     # Rate limit
     check_otp_rate_limit(email)
+
+    user = db.query(User).filter(User.identifier == email).first()
+    if not user or not user.password_set:
+        # Don't reveal if user exists or not for security, just return success
+        return {"message": "If the email is registered, an OTP has been sent."}
 
     # Generate OTP
     otp = generate_otp()
     otp_hash = hash_password(otp)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
-    if existing:
-        # Update existing pending user
-        existing.otp_hash = otp_hash
-        existing.otp_expires_at = expires_at
-        existing.otp_attempts = 0
-    else:
-        # Create a pending user (password_set=False)
-        user = User(
-            identifier=email,
-            email=email,
-            password_hash="",  # Not set yet
-            role=UserRole.student,
-            name=allowed.name or email.split("@")[0],  # Temporary or prefilled name
-            is_active=True,
-            otp_hash=otp_hash,
-            otp_expires_at=expires_at,
-            otp_attempts=0,
-            password_set=False,
-            must_change_password=False,
-        )
-        db.add(user)
-
+    user.otp_hash = otp_hash
+    user.otp_expires_at = expires_at
+    user.otp_attempts = 0
     db.commit()
 
     # Send OTP via email (console in dev)
     send_otp_email(email, otp)
 
-    return RequestOTPResponse()
+    return {"message": "If the email is registered, an OTP has been sent."}
 
 
-# ---------------------------------------------------------------------------
-# Student signup — Step 2: Verify OTP
-# ---------------------------------------------------------------------------
-
-@router.post("/signup/verify-otp", response_model=VerifyOTPResponse)
-def verify_otp(body: VerifyOTPRequest, db: Session = Depends(get_db)):
+@router.post("/forgot-password/verify-otp", response_model=VerifyOTPResponse)
+def forgot_password_verify_otp(body: ForgotPasswordVerifyOTP, db: Session = Depends(get_db)):
     email = body.email.strip().lower()
 
     user = db.query(User).filter(User.identifier == email).first()
-    if not user or user.password_set:
+    if not user or not user.password_set:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No pending signup found for this email.",
+            detail="Invalid request.",
         )
 
     # Check expiry
@@ -150,35 +225,25 @@ def verify_otp(body: VerifyOTPRequest, db: Session = Depends(get_db)):
             detail="Invalid OTP. Please try again.",
         )
 
-    # OTP is valid — generate signup token
-    signup_token = create_signup_token(email)
+    # OTP is valid — generate reset token (re-using signup token for simplicity)
+    reset_token = create_signup_token(email)
 
     # Clear OTP fields
     user.otp_hash = None
     user.otp_expires_at = None
-    # Fetch prefill info from AllowedRollNumber if available
-    allowed = db.query(AllowedRollNumber).filter(AllowedRollNumber.email == email).first()
+    db.commit()
 
-    return VerifyOTPResponse(
-        signup_token=signup_token,
-        name=allowed.name if allowed else None,
-        room_no=allowed.room_number if allowed else None,
-        roll_no=allowed.roll_no if allowed else None,
-    )
+    return VerifyOTPResponse(reset_token=reset_token)
 
 
-# ---------------------------------------------------------------------------
-# Student signup — Step 3: Set password
-# ---------------------------------------------------------------------------
-
-@router.post("/signup/set-password", response_model=LoginResponse)
-def set_password(body: SetPasswordRequest, response: Response, db: Session = Depends(get_db)):
-    # Decode the signup token
-    payload = decode_token(body.signup_token)
+@router.post("/forgot-password/reset-password", response_model=LoginResponse)
+def forgot_password_reset(body: ForgotPasswordReset, response: Response, db: Session = Depends(get_db)):
+    # Decode the token
+    payload = decode_token(body.reset_token)
     if not payload or payload.get("type") != "signup":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired signup token.",
+            detail="Invalid or expired reset token.",
         )
 
     email = payload.get("email")
@@ -190,18 +255,8 @@ def set_password(body: SetPasswordRequest, response: Response, db: Session = Dep
             detail="User not found.",
         )
 
-    if user.password_set:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Password already set. Please log in.",
-        )
-
-    # Set password, name, room_no, and roll_no
-    user.password_hash = hash_password(body.password)
-    user.password_set = True
-    user.name = body.name
-    user.room_no = body.room_no
-    user.roll_no = body.roll_no
+    # Set new password
+    user.password_hash = hash_password(body.new_password)
     db.commit()
 
     # Issue tokens

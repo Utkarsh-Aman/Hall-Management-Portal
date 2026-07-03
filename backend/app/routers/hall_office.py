@@ -140,6 +140,74 @@ def upload_roll_numbers(
 # Manual Roll Number Management
 # ---------------------------------------------------------------------------
 
+@router.get("/roll-numbers/export-setup")
+def export_setup_codes(
+    current_user: User = Depends(require_role("hall_office")),
+    db: Session = Depends(get_db),
+):
+    import random
+    import string
+    
+    # 1. Fetch all AllowedRollNumber
+    all_rolls = db.query(AllowedRollNumber).all()
+    
+    # 2. Fetch all registered student identifiers (emails) and roll_nos
+    registered_users = db.query(User).filter(User.role == UserRole.student).all()
+    registered_emails = {u.identifier for u in registered_users if u.identifier}
+    registered_rolls = {u.roll_no for u in registered_users if u.roll_no}
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Roll No", "Name", "Email", "Room Number", "Setup Code", "Status"])
+    
+    changed = False
+    
+    for roll in all_rolls:
+        # Check if they are already registered
+        is_registered = False
+        if roll.email and roll.email.lower() in registered_emails:
+            is_registered = True
+        if roll.roll_no and roll.roll_no in registered_rolls:
+            is_registered = True
+            
+        if is_registered:
+            status = "Already Registered"
+            setup_code = "-"
+            # Clear setup code if they somehow registered
+            if roll.setup_code:
+                roll.setup_code = None
+                changed = True
+        else:
+            status = "Pending Setup"
+            # Generate setup code if missing
+            if not roll.setup_code:
+                # 8 char random alphanumeric
+                chars = string.ascii_uppercase + string.digits
+                roll.setup_code = ''.join(random.choice(chars) for _ in range(8))
+                changed = True
+            setup_code = roll.setup_code
+            
+        writer.writerow([
+            roll.roll_no,
+            roll.name or "",
+            roll.email or "",
+            roll.room_number or "",
+            setup_code,
+            status
+        ])
+        
+    if changed:
+        db.commit()
+        
+    from fastapi.responses import StreamingResponse
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=student_setup_codes.csv"}
+    )
+
+
 @router.get("/roll-numbers", response_model=list[AllowedRollResponse])
 def get_roll_numbers(
     current_user: User = Depends(require_role("hall_office")),

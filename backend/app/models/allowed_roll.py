@@ -23,3 +23,4 @@ class AllowedRollNumber(Base):
     uploaded_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
+    setup_code: Mapped[str | None] = mapped_column(String(50), nullable=True)

@@ -110,6 +110,15 @@ export default function LoginPage() {
             />
           </div>
 
+          <div className="flex justify-end mt-2">
+            <Link
+              href="/forgot-password"
+              className="text-xs text-accent hover:text-accent-hover transition-colors font-medium"
+            >
+              Forgot Password?
+            </Link>
+          </div>
+
           <button
             type="submit"
             id="login-submit"
@@ -122,12 +131,12 @@ export default function LoginPage() {
 
         {/* Signup link */}
         <p className="text-center text-sm text-text-muted mt-6">
-          Student?{" "}
+          New Student?{" "}
           <Link
             href="/signup"
             className="text-accent hover:text-accent-hover transition-colors font-medium"
           >
-            Sign up here
+            Setup your account
           </Link>
         </p>
 

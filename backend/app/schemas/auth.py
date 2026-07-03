@@ -6,39 +6,49 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 # ---------------------------------------------------------------------------
-# Student signup flow
+# Student Setup Flow (replaces old Signup)
 # ---------------------------------------------------------------------------
 
-class RequestOTPRequest(BaseModel):
-    """Step 1: student requests an OTP."""
-    email: EmailStr
+class SetupVerifyRequest(BaseModel):
+    """Step 1: student verifies their setup code."""
+    roll_no: str
+    setup_code: str = Field(..., min_length=8, max_length=8)
 
-
-class RequestOTPResponse(BaseModel):
-    message: str = "OTP sent to your email."
-
-
-class VerifyOTPRequest(BaseModel):
-    """Step 2: student verifies the OTP."""
-    email: EmailStr
-    otp: str = Field(..., min_length=6, max_length=6)
-
-
-class VerifyOTPResponse(BaseModel):
-    signup_token: str
+class SetupVerifyResponse(BaseModel):
     name: str | None = None
+    email: str | None = None
     room_no: str | None = None
-    roll_no: str | None = None
-    message: str = "OTP verified. Set your password."
+    message: str = "Setup code verified. Set your password."
 
-
-class SetPasswordRequest(BaseModel):
-    """Step 3: student sets their password after OTP verification."""
-    signup_token: str
+class SetupCompleteRequest(BaseModel):
+    """Step 2: student sets their password and finalizes details."""
+    roll_no: str
+    setup_code: str = Field(..., min_length=8, max_length=8)
     password: str = Field(..., min_length=8, max_length=128)
     name: str = Field(..., min_length=1, max_length=255)
     room_no: str | None = Field(None, max_length=50)
-    roll_no: str | None = Field(None, max_length=50)
+
+# ---------------------------------------------------------------------------
+# Forgot Password Flow
+# ---------------------------------------------------------------------------
+
+class ForgotPasswordRequestOTP(BaseModel):
+    """Step 1: user requests an OTP to their email."""
+    email: EmailStr
+
+class ForgotPasswordVerifyOTP(BaseModel):
+    """Step 2: user verifies the OTP."""
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6)
+
+class ForgotPasswordReset(BaseModel):
+    """Step 3: user sets their new password."""
+    reset_token: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+class VerifyOTPResponse(BaseModel):
+    reset_token: str
+    message: str = "OTP verified. Set your new password."
 
 
 class ChangePasswordRequest(BaseModel):
