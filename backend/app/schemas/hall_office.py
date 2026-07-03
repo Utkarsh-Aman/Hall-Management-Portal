@@ -59,6 +59,7 @@ class AllowedRollResponse(BaseModel):
     name: str | None
     email: str | None
     room_number: str | None
+    setup_code: str | None = None
     uploaded_at: datetime
     uploaded_by: int
 

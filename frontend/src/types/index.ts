@@ -146,6 +146,7 @@ export interface AllowedRollResponse {
   name: string | null;
   email: string | null;
   room_number: string | null;
+  setup_code: string | null;
   uploaded_at: string;
   uploaded_by: number;
 }

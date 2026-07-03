@@ -75,5 +75,6 @@ def send_otp_email(to: str, otp: str) -> None:
         f"Your verification code for Hall 12 (Marathas) Portal is:\n\n"
         f"    {otp}\n\n"
         f"This code expires in 10 minutes. Do not share it with anyone."
+        f"If this was not done by you immediately contact hall office and Mess secretary and forward this mail to hall12@iitk.ac.in and utkarsh24@iitk.ac.in stating the same."
     )
     _backend.send(to, subject, body)

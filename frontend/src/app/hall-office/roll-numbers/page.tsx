@@ -8,6 +8,8 @@ import type { AllowedRollResponse, RollNumberUploadResponse } from "@/types";
 export default function RollNumbersPage() {
   const [rolls, setRolls] = useState<AllowedRollResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visibleOtp, setVisibleOtp] = useState<string | null>(null);
   
   // CSV Upload State
   const [file, setFile] = useState<File | null>(null);
@@ -143,6 +145,15 @@ export default function RollNumbersPage() {
     }
   };
 
+  const filteredRolls = rolls.filter((r) => {
+    const term = searchQuery.toLowerCase();
+    return (
+      r.roll_no.toLowerCase().includes(term) ||
+      (r.name || "").toLowerCase().includes(term) ||
+      (r.room_number || "").toLowerCase().includes(term)
+    );
+  });
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -246,7 +257,7 @@ export default function RollNumbersPage() {
             </form>
           ) : (
             <div className="flex h-32 items-center justify-center border-2 border-dashed border-border rounded-xl">
-              <p className="text-sm text-text-muted">Click "+ Add Student" to manually insert a record.</p>
+              <p className="text-sm text-text-muted">Click &quot;+ Add Student&quot; to manually insert a record.</p>
             </div>
           )}
         </div>
@@ -254,10 +265,19 @@ export default function RollNumbersPage() {
 
       {/* Allowed Rolls Table */}
       <div className="glass-card rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-sm font-semibold text-text-primary">
-            Uploaded Students ({rolls.length})
+            Uploaded Students ({filteredRolls.length})
           </h2>
+          <div className="w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Search Roll, Name or Room..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+            />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
@@ -267,29 +287,52 @@ export default function RollNumbersPage() {
                 <th className="px-6 py-3 font-medium">Name</th>
                 <th className="px-6 py-3 font-medium">Email</th>
                 <th className="px-6 py-3 font-medium">Room</th>
+                <th className="px-6 py-3 font-medium">Setup Code</th>
                 <th className="px-6 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-text-muted">
+                  <td colSpan={6} className="px-6 py-8 text-center text-text-muted">
                     Loading records...
                   </td>
                 </tr>
-              ) : rolls.length === 0 ? (
+              ) : filteredRolls.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-text-muted">
-                    No roll numbers found. Upload a CSV to get started.
+                  <td colSpan={6} className="px-6 py-8 text-center text-text-muted">
+                    No matching roll numbers found.
                   </td>
                 </tr>
               ) : (
-                rolls.map((r) => (
+                filteredRolls.map((r) => (
                   <tr key={r.roll_no} className="hover:bg-bg-elevated/30 transition-colors">
                     <td className="px-6 py-3 font-medium text-text-primary">{r.roll_no}</td>
                     <td className="px-6 py-3 text-text-secondary">{r.name || "—"}</td>
                     <td className="px-6 py-3 text-text-secondary">{r.email || "—"}</td>
                     <td className="px-6 py-3 text-text-secondary">{r.room_number || "—"}</td>
+                    <td className="px-6 py-3 text-text-secondary">
+                      {r.setup_code ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono bg-bg-surface px-2 py-1 rounded text-xs tracking-widest text-text-primary">
+                            {visibleOtp === r.roll_no ? r.setup_code : "••••••••"}
+                          </span>
+                          <button
+                            onClick={() => setVisibleOtp(visibleOtp === r.roll_no ? null : r.roll_no)}
+                            className="text-text-muted hover:text-accent transition-colors"
+                            title="Toggle Setup Code"
+                          >
+                            {visibleOtp === r.roll_no ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-text-muted italic opacity-50">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-3 text-right">
                       <button
                         onClick={() => handleDelete(r.roll_no)}

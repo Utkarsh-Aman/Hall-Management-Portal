@@ -115,7 +115,7 @@ HMP/
 
 See `PROJECT.md` for the full API specification. Key route groups:
 
-- `POST /auth/*` — Signup OTP flow, login, refresh, logout
+- `POST /auth/*` — Student Setup flow, Forgot Password OTP, login, refresh, logout
 - `GET /dashboard/summary` — Student wastage summary
 - `GET /menu/weekly` — Weekly menu
 - `GET /items` — Available extras
@@ -133,9 +133,12 @@ See `PROJECT.md` for the full API specification. Key route groups:
 - **Scanner Audio**: Mess workers get instant audible feedback (success/error chimes) upon scanning a QR code.
 - **Access Revocation Sync**: Removing a student from the Allowed Roll Number list instantly deactivates their account without destroying historical purchase data.
 - **Full Account Management**: Hall office can create/deactivate/delete staff accounts, and force password resets.
+- **Bulk Onboarding & Setup Codes**: Replaced the email-heavy signup flow with a fast bulk onboarding process. The Hall Office can now generate and download one-time setup codes to securely send to hundreds of students via Mail Merge.
+- **Forgot Password**: Repurposed the previous OTP-based authentication system into a robust forgot-password flow allowing students to securely reset their accounts via email.
 
 ## Notes
 
+- **SMTP & Render Free Tier:** Render free tier blocks outbound ports 25, 465, and 587. To send OTP emails in production on Render, use an SMTP provider like Resend on port 2525. An IPv4 resolution workaround has been implemented natively in `email_service.py` to prevent "Network is unreachable" IPv6 routing errors on Render.
 - **Recurring extras:** APScheduler runs inside the FastAPI process, checking hourly for items to recreate on their designated weekday. For production, swap to an external cron or Celery beat.
 - **Email in dev:** OTPs are logged to the console. Set `SMTP_*` env vars for real email delivery.
 - **Rate limiting:** In-memory (single-process). For multi-process production, use Redis.
