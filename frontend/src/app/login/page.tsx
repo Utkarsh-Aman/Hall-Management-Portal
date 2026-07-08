@@ -84,7 +84,7 @@ export default function LoginPage() {
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="e.g. 230001@iitk.ac.in or MS-001"
+              placeholder="e.g. abcd@iitk.ac.in or MS-001"
               className="w-full px-3.5 py-2.5 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent input-glow transition-colors"
               required
               autoComplete="username"

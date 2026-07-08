@@ -57,6 +57,43 @@ body {
 }
 
 /* ============================================================
+   Interactive Elements — Global cursor, hover & click effects
+   ============================================================ */
+
+/* Pointer cursor for all clickable elements */
+button,
+[role="button"],
+select,
+summary,
+a[href] {
+  cursor: pointer;
+}
+
+/* Hover: subtle darkening on non-disabled buttons */
+button:not(:disabled):hover,
+[role="button"]:not(:disabled):hover {
+  filter: brightness(0.92);
+}
+
+/* Active/click: scale-down press effect */
+button:not(:disabled):active,
+[role="button"]:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Ensure smooth transitions for interactive states */
+button,
+[role="button"] {
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+/* Disabled buttons should show not-allowed cursor */
+button:disabled,
+[role="button"]:disabled {
+  cursor: not-allowed;
+}
+
+/* ============================================================
    Utility Classes
    ============================================================ */
 

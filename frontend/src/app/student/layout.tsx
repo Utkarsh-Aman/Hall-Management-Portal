@@ -15,7 +15,7 @@ export default function StudentLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, serverWaking } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -27,7 +27,17 @@ export default function StudentLayout({
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-base">
-        <div className="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-4 max-w-xs text-center">
+          <div className="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+          {serverWaking && (
+            <>
+              <p className="text-sm font-medium text-accent">Server is waking up…</p>
+              <p className="text-xs text-text-muted leading-relaxed">
+                The server goes to sleep after 15 min of inactivity. First load takes ~50 seconds.
+              </p>
+            </>
+          )}
+        </div>
       </div>
     );
   }

@@ -36,7 +36,7 @@ export default function StaffBookingsPage() {
       let url = "/staff/bookings";
       const params = new URLSearchParams();
       if (filterDate) params.set("date", filterDate);
-      if (searchQuery.trim()) params.set("search", searchQuery.trim());
+      // Search is now client-side only — no backend query needed
       if (params.toString()) url += `?${params.toString()}`;
 
       const data = await apiFetch<StaffBooking[]>(url);
@@ -53,7 +53,7 @@ export default function StaffBookingsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterDate, searchQuery]);
+  }, [filterDate]); // Only re-fetch when date changes, not on search
 
   const handleCancel = async (id: number) => {
     if (!confirm("Are you sure you want to cancel this booking?")) return;
@@ -94,22 +94,102 @@ export default function StaffBookingsPage() {
     }
   };
 
+  /** Generate a timestamp string for CSV filenames: YYYYMMDD_HHmmss */
+  const getTimestamp = () => {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  };
+
+  /** Download the currently filtered bookings as a CSV */
+  const handleDownloadCSV = () => {
+    const filtered = getFilteredBookings();
+    if (filtered.length === 0) {
+      toast("No bookings to export.", "warning");
+      return;
+    }
+
+    const headers = ["Meal", "Item", "Student Name", "Roll No", "Qty", "Status", "Booked At"];
+    const rows = filtered.map((b) => [
+      b.meal_type,
+      b.item_name,
+      b.student_name,
+      b.student_identifier.includes("@") ? b.student_identifier.split("@")[0].toUpperCase() : b.student_identifier.toUpperCase(),
+      String(b.qty),
+      b.status,
+      new Date(b.booked_at).toLocaleString("en-IN"),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const mealLabel = mealFilter !== "All" ? `_${mealFilter}` : "";
+    const statusLabel = statusFilter !== "All" ? `_${statusFilter}` : "";
+    link.href = url;
+    link.download = `bookings_${filterDate}${mealLabel}${statusLabel}_${getTimestamp()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast("CSV downloaded.", "success");
+  };
+
+  /** Client-side filtering: search + meal + status (all instant, no backend call) */
+  const getFilteredBookings = () => {
+    const query = searchQuery.trim().toLowerCase();
+    return bookings.filter((b) => {
+      // Meal filter
+      if (mealFilter !== "All" && b.meal_type.toLowerCase() !== mealFilter.toLowerCase()) return false;
+      // Status filter
+      if (statusFilter !== "All" && b.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
+      // Search filter (client-side: matches name, roll no, or item name)
+      if (query) {
+        const rollNo = b.student_identifier.includes("@")
+          ? b.student_identifier.split("@")[0].toLowerCase()
+          : b.student_identifier.toLowerCase();
+        const matchesName = b.student_name.toLowerCase().includes(query);
+        const matchesRoll = rollNo.includes(query);
+        const matchesItem = b.item_name.toLowerCase().includes(query);
+        if (!matchesName && !matchesRoll && !matchesItem) return false;
+      }
+      return true;
+    });
+  };
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-lg font-bold text-text-primary">
           All Bookings
         </h1>
-        <button
-          onClick={() => {
-            setMissedConfirmText("");
-            setShowMissedModal(true);
-          }}
-          className="px-4 py-2 rounded-xl border border-warning/30 text-warning bg-warning/10 text-xs font-bold hover:bg-warning/20 transition-colors"
-          title="Mark missed items whose meal cutoff time has passed."
-        >
-          Mark Missed Meals
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleDownloadCSV}
+            className="px-4 py-2 rounded-xl border border-border text-text-secondary text-xs font-bold hover:bg-bg-surface-hover transition-colors flex items-center gap-1.5"
+            title="Download filtered bookings as CSV"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            CSV
+          </button>
+          <button
+            onClick={() => {
+              setMissedConfirmText("");
+              setShowMissedModal(true);
+            }}
+            className="px-4 py-2 rounded-xl border border-warning/30 text-warning bg-warning/10 text-xs font-bold hover:bg-warning/20 transition-colors"
+            title="Mark missed items whose meal cutoff time has passed."
+          >
+            Mark Missed Meals
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -182,11 +262,7 @@ export default function StaffBookingsPage() {
       </div>
       
       {(() => {
-        const filteredBookings = bookings.filter((b) => {
-          if (mealFilter !== "All" && b.meal_type.toLowerCase() !== mealFilter.toLowerCase()) return false;
-          if (statusFilter !== "All" && b.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
-          return true;
-        });
+        const filteredBookings = getFilteredBookings();
 
         return (
           <>

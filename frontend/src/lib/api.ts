@@ -67,8 +67,10 @@ export async function apiFetch<T = unknown>(
 
   if (!response.ok) {
     if (response.status === 401 && !skipAuth) {
+      // Only clear token and redirect if we already tried refreshing above
+      // This means the refresh also returned 401 (invalid/expired session)
       accessToken = null;
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && !options.skipAuth) {
         window.location.href = "/login";
       }
     }

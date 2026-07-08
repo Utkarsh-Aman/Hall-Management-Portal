@@ -27,7 +27,11 @@ export default function StaffReportsPage() {
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.download = `extras_report_${startDate}_to_${endDate}.csv`;
+      // Add download timestamp to filename
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      link.download = `extras_report_${startDate}_to_${endDate}_${ts}.csv`;
       document.body.appendChild(link);
       link.click();
       link.remove();

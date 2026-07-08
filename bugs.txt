@@ -1,0 +1,10 @@
+minor upgrades
+1. csv download feature for list of bookings for mess staff day wise and meal wise
+2. comment code for qr showing for later use not showing in frontend of students
+3. on csv downlosd add date time of downloading in filename
+4. on almost all buttons there is no click animation and mouse cursor  change to pointer implement thisevery where in frontend
+5.improve error handeling insted of rolling on first reload write server takes 50 sec to restart if not used by anybody in last 15 minutes please wait in short not exactly this words
+other loading scree is good no change
+
+major issue
+1.refreshing logs user out of the website and has to re login

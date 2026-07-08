@@ -11,6 +11,7 @@ from app.dependencies import (
     check_login_rate_limit,
     check_otp_rate_limit,
     clear_login_attempts,
+    get_current_user,
     get_db,
     record_failed_login,
 )
@@ -414,6 +415,26 @@ def change_password(body: ChangePasswordRequest, response: Response, db: Session
             roll_no=user.roll_no,
             room_no=user.room_no,
         ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Get current user info (for session restore after refresh)
+# ---------------------------------------------------------------------------
+
+@router.get("/me", response_model=UserBrief)
+def get_me(
+    current_user: User = Depends(get_current_user),
+):
+    """Return full user info for the currently authenticated user."""
+    return UserBrief(
+        id=current_user.id,
+        identifier=current_user.identifier,
+        name=current_user.name,
+        role=current_user.role.value,
+        email=current_user.email,
+        roll_no=current_user.roll_no,
+        room_no=current_user.room_no,
     )
 
 

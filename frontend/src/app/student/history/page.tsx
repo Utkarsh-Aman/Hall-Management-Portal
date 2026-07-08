@@ -10,12 +10,20 @@ import { useToast } from "@/components/ui/Toast";
 import { formatPrice, parseApiDate } from "@/lib/utils";
 import type { Booking, BookingListResponse } from "@/types";
 
+/** Generate a timestamp string for CSV filenames: YYYYMMDD_HHmmss */
+const getTimestamp = () => {
+  const now = new Date();
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+};
+
 export default function HistoryPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [runningTotal, setRunningTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [qrBookingId, setQrBookingId] = useState<number | null>(null);
-  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  // TODO v2: Re-enable QR code display for students
+  // const [qrBookingId, setQrBookingId] = useState<number | null>(null);
+  // const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<Date>(() => new Date());
   const { toast } = useToast();
 
@@ -56,7 +64,7 @@ export default function HistoryPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "my_bookings_history.csv";
+      a.download = `my_bookings_history_${getTimestamp()}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -66,23 +74,24 @@ export default function HistoryPage() {
     }
   };
 
-  const showQR = async (bookingId: number) => {
-    setQrBookingId(bookingId);
-    try {
-      const blob = await apiFetchBlob(`/bookings/${bookingId}/qr`);
-      const url = URL.createObjectURL(blob);
-      setQrImageUrl(url);
-    } catch {
-      toast("Failed to load QR code.", "error");
-      setQrBookingId(null);
-    }
-  };
-
-  const closeQR = () => {
-    if (qrImageUrl) URL.revokeObjectURL(qrImageUrl);
-    setQrBookingId(null);
-    setQrImageUrl(null);
-  };
+  // TODO v2: Re-enable QR code display for students
+  // const showQR = async (bookingId: number) => {
+  //   setQrBookingId(bookingId);
+  //   try {
+  //     const blob = await apiFetchBlob(`/bookings/${bookingId}/qr`);
+  //     const url = URL.createObjectURL(blob);
+  //     setQrImageUrl(url);
+  //   } catch {
+  //     toast("Failed to load QR code.", "error");
+  //     setQrBookingId(null);
+  //   }
+  // };
+  //
+  // const closeQR = () => {
+  //   if (qrImageUrl) URL.revokeObjectURL(qrImageUrl);
+  //   setQrBookingId(null);
+  //   setQrImageUrl(null);
+  // };
 
   const handleCancel = async (bookingId: number) => {
     if (!confirm("Are you sure you want to cancel this booking?")) return;
@@ -203,12 +212,13 @@ export default function HistoryPage() {
 
               {(b.status === "booked" || b.status === "cancel_requested") && (
                 <div className="flex flex-col gap-2 flex-shrink-0 relative z-10">
-                  <button
+                  {/* TODO v2: Re-enable QR code display for students */}
+                  {/* <button
                     onClick={() => showQR(b.id)}
                     className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-lg shadow-accent/20 transition-all hover:scale-105 active:scale-95"
                   >
                     Show QR
-                  </button>
+                  </button> */}
                   {b.status === "booked" && (
                     new Date() < parseApiDate(b.closes_at) ? (
                       <button
@@ -244,7 +254,7 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* QR Modal */}
+      {/* TODO v2: Re-enable QR Modal for students
       {qrBookingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
@@ -278,6 +288,7 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
+      */}
     </div>
   );
 }
