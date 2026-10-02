@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Forced password change page — for staff accounts on first login.
+ * Forced password change page - for staff accounts on first login.
  */
 
 import React, { useState } from "react";

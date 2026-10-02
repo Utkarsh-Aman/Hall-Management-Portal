@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Root page — redirects to role-specific dashboard or login.
+ * Root page - redirects to role-specific dashboard or login.
  * Shows a cold-start message if the backend is waking up.
  */
 
@@ -23,7 +23,7 @@ export default function Home() {
     }
   }, [user, isLoading, router]);
 
-  // Loading spinner while checking auth — with cold-start messaging
+  // Loading spinner while checking auth - with cold-start messaging
   return (
     <div className="flex-1 flex items-center justify-center min-h-screen">
       <div className="flex flex-col items-center gap-4 max-w-xs text-center">

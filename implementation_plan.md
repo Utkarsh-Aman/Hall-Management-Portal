@@ -1,4 +1,4 @@
-# Hall Management Portal — Implementation Plan
+# Hall Management Portal - Implementation Plan
 
 Full-stack MVP for IIT Kanpur Hall 12 (Marathas): extras booking with QR codes, weekly menu, wastage tracking, and role-based access for 4 user types.
 
@@ -7,7 +7,7 @@ Full-stack MVP for IIT Kanpur Hall 12 (Marathas): extras booking with QR codes, 
 ## User Review Required
 
 > [!IMPORTANT]
-> **CSV upload mode — Replace vs Append**: The spec says "your choice, but be explicit." I'll implement **Replace** mode: each CSV upload clears the existing `allowed_roll_numbers` table and inserts the new list. The UI will show a warning ("This will replace all 142 existing roll numbers with 150 new ones — confirm?") before proceeding. Students who already have accounts are unaffected (their `users` row persists), but new signups can only happen for roll numbers in the latest upload. This is simpler and less error-prone than append (no duplicates to manage).
+> **CSV upload mode - Replace vs Append**: The spec says "your choice, but be explicit." I'll implement **Replace** mode: each CSV upload clears the existing `allowed_roll_numbers` table and inserts the new list. The UI will show a warning ("This will replace all 142 existing roll numbers with 150 new ones - confirm?") before proceeding. Students who already have accounts are unaffected (their `users` row persists), but new signups can only happen for roll numbers in the latest upload. This is simpler and less error-prone than append (no duplicates to manage).
 
 > [!IMPORTANT]
 > **`prep_time_mins` column**: The spec schema includes `prep_time_mins` in `extras_items`. I'll compute this as `closes_at - opens_at` in minutes and store it as a denormalized field written at create/update time (not user-entered). The staff UI will display it as a derived read-only label.
@@ -21,7 +21,7 @@ Full-stack MVP for IIT Kanpur Hall 12 (Marathas): extras booking with QR codes, 
 ## Open Questions
 
 > [!IMPORTANT]
-> **Roll number format**: What format are roll numbers in? I'll assume alphanumeric strings like `230587` or `Y22CS101` — the CSV parser will accept any non-empty trimmed string per row. If there's a strict regex pattern you want enforced, let me know.
+> **Roll number format**: What format are roll numbers in? I'll assume alphanumeric strings like `230587` or `Y22CS101` - the CSV parser will accept any non-empty trimmed string per row. If there's a strict regex pattern you want enforced, let me know.
 
 > [!NOTE]
 > **Recurring extras auto-creation time**: For weekly recurring items, at what time should the system auto-create the fresh listing each week? I'll default to **midnight IST (00:00 Asia/Kolkata)** on the recurring weekday, creating items with the same `opens_at`/`closes_at` times as the template. The APScheduler job runs every hour and checks if today matches any recurring weekday that hasn't been instantiated yet.
@@ -162,7 +162,7 @@ HMP/
 
 ---
 
-### Step 1 — Scaffold & Branding
+### Step 1 - Scaffold & Branding
 
 #### [NEW] `backend/` directory
 
@@ -189,7 +189,7 @@ HMP/
 
 #### [NEW] `frontend/` directory
 
-- Scaffold with `npx -y create-next-app@latest ./` (TypeScript, Tailwind, App Router, no src/ alias — actually use `src/`).
+- Scaffold with `npx -y create-next-app@latest ./` (TypeScript, Tailwind, App Router, no src/ alias - actually use `src/`).
 - Strip all default content: remove `page.tsx` placeholder, `globals.css` defaults, default icons/images from `public/`.
 - Copy `logo.webp` to `frontend/public/logo.webp`.
 - Generate a favicon from the logo (convert webp → ico, or just reference the webp directly).
@@ -208,11 +208,11 @@ HMP/
   }
   ```
 - `globals.css`: base dark styles, Inter font import from Google Fonts.
-- `layout.tsx`: `<html className="dark">`, metadata with "Hall 12 — Marathas" title, favicon link, Inter font.
+- `layout.tsx`: `<html className="dark">`, metadata with "Hall 12 - Marathas" title, favicon link, Inter font.
 
 ---
 
-### Step 2 — Database Models + Alembic + Seed
+### Step 2 - Database Models + Alembic + Seed
 
 #### [NEW] `backend/app/models/user.py`
 
@@ -226,7 +226,7 @@ class UserRole(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
     id: Mapped[int]             # PK, auto-increment
-    identifier: Mapped[str]     # email for students, staff_id for staff — unique
+    identifier: Mapped[str]     # email for students, staff_id for staff - unique
     email: Mapped[str | None]   # nullable for staff
     password_hash: Mapped[str]
     role: Mapped[UserRole]
@@ -339,36 +339,36 @@ class WastageLog(Base):
 
 ---
 
-### Step 3 — Auth Endpoints + JWT Middleware + Role Guards
+### Step 3 - Auth Endpoints + JWT Middleware + Role Guards
 
 #### [NEW] `backend/app/services/auth_service.py`
 
-- `hash_password(plain) -> str` — bcrypt
+- `hash_password(plain) -> str` - bcrypt
 - `verify_password(plain, hashed) -> bool`
 - `create_access_token(user_id, role, expires_delta=15min) -> str`
 - `create_refresh_token(user_id, role, expires_delta=7days) -> str`
-- `decode_token(token) -> dict` — validates exp, returns `{user_id, role}`
-- `generate_otp() -> str` — 6-digit random
-- `generate_temp_password() -> str` — 16-char `secrets.token_urlsafe`
+- `decode_token(token) -> dict` - validates exp, returns `{user_id, role}`
+- `generate_otp() -> str` - 6-digit random
+- `generate_temp_password() -> str` - 16-char `secrets.token_urlsafe`
 
 #### [NEW] `backend/app/services/email_service.py`
 
 - `EmailService` class with `send_otp(email, otp)` method.
 - `ConsoleEmailBackend`: prints to stdout/logger.
-- `SMTPEmailBackend`: uses `smtplib` with env vars — loaded conditionally.
+- `SMTPEmailBackend`: uses `smtplib` with env vars - loaded conditionally.
 
 #### [NEW] `backend/app/dependencies.py`
 
-- `get_db()` — yields SQLAlchemy session.
-- `get_current_user(request)` — extracts Bearer token from `Authorization` header, decodes JWT, fetches user from DB, raises 401 if invalid/expired.
-- `require_role(*roles)` — returns a dependency that checks `current_user.role in roles`, raises 403 if not.
+- `get_db()` - yields SQLAlchemy session.
+- `get_current_user(request)` - extracts Bearer token from `Authorization` header, decodes JWT, fetches user from DB, raises 401 if invalid/expired.
+- `require_role(*roles)` - returns a dependency that checks `current_user.role in roles`, raises 403 if not.
 - Rate-limiting state: in-memory dict (keyed by email/identifier) tracking OTP requests and login attempts with timestamps. Fine for single-process MVP; documented as needing Redis for multi-process.
 
 #### [NEW] `backend/app/routers/auth.py`
 
 | Endpoint | Logic |
 |---|---|
-| `POST /auth/signup/request-otp` | Validate roll_no in `allowed_roll_numbers`. Check no existing user with that email. Rate-limit (3/15min). Generate OTP, hash with bcrypt, store in a pending `User` row (or separate temp table — I'll use the `User` row with `password_set=False`). Send OTP via email service. |
+| `POST /auth/signup/request-otp` | Validate roll_no in `allowed_roll_numbers`. Check no existing user with that email. Rate-limit (3/15min). Generate OTP, hash with bcrypt, store in a pending `User` row (or separate temp table - I'll use the `User` row with `password_set=False`). Send OTP via email service. |
 | `POST /auth/signup/verify-otp` | Look up user by email, check `otp_hash` matches, check expiry, decrement attempts. Return a short-lived `signup_token` (JWT, 10 min, special claim) on success. |
 | `POST /auth/signup/set-password` | Validate `signup_token`. Hash password, set `password_set=True`, clear OTP fields. Issue access+refresh tokens. |
 | `POST /auth/login` | Find user by identifier. Check lockout. Verify password. If `must_change_password`, return special response indicating forced change needed (with a temporary token). Otherwise issue access+refresh tokens (refresh as httpOnly cookie). |
@@ -378,30 +378,30 @@ class WastageLog(Base):
 
 ---
 
-### Step 4 — Hall Office Endpoints
+### Step 4 - Hall Office Endpoints
 
 #### [NEW] `backend/app/routers/hall_office.py`
 
 | Endpoint | Logic |
 |---|---|
 | `POST /hall-office/roll-numbers/upload` | `require_role("hall_office")`. Accept multipart file. Validate: must be `.csv`, max 1MB, parse with `csv.reader`. Each row should have exactly one non-empty value (the roll number). Delete all existing rows in `allowed_roll_numbers`, insert new ones. Return `{count: N}`. |
-| `POST /hall-office/staff` | `require_role("hall_office")`. Accept `{name, role}` where role ∈ {mess_staff, mess_worker}. Generate staff_id (e.g., `MS-001` or `MW-001` auto-incrementing prefix). Generate temp password via `secrets.token_urlsafe(12)`. Create user with `must_change_password=True`. Return `{staff_id, name, role, temp_password}` — this is the **only time** the temp password is visible. |
+| `POST /hall-office/staff` | `require_role("hall_office")`. Accept `{name, role}` where role ∈ {mess_staff, mess_worker}. Generate staff_id (e.g., `MS-001` or `MW-001` auto-incrementing prefix). Generate temp password via `secrets.token_urlsafe(12)`. Create user with `must_change_password=True`. Return `{staff_id, name, role, temp_password}` - this is the **only time** the temp password is visible. |
 | `GET /hall-office/staff` | `require_role("hall_office")`. List all users with role ∈ {mess_staff, mess_worker}, showing id, name, role, identifier, is_active, created_at. |
 | `PATCH /hall-office/staff/{id}` | `require_role("hall_office")`. Toggle `is_active`. |
 
 ---
 
-### Step 5 — Items + Bookings + QR
+### Step 5 - Items + Bookings + QR
 
 #### [NEW] `backend/app/services/qr_service.py`
 
-- `generate_qr_image(qr_token: str) -> bytes` — uses `qrcode` library to produce a PNG in memory (BytesIO). The QR encodes just the token UUID string.
+- `generate_qr_image(qr_token: str) -> bytes` - uses `qrcode` library to produce a PNG in memory (BytesIO). The QR encodes just the token UUID string.
 
 #### [NEW] `backend/app/routers/items.py`
 
 | Endpoint | Logic |
 |---|---|
-| `GET /items` | `require_role("student")`. Return active items where `opens_at <= now.time() <= closes_at` (or all active items with their time windows — let the frontend show "opens at X"). |
+| `GET /items` | `require_role("student")`. Return active items where `opens_at <= now.time() <= closes_at` (or all active items with their time windows - let the frontend show "opens at X"). |
 
 #### [NEW] `backend/app/routers/bookings.py`
 
@@ -411,7 +411,7 @@ class WastageLog(Base):
 | `GET /bookings/me` | `require_role("student")`. Return all bookings for `current_user.id`, ordered by `booked_at` desc. Include item name via join. Also return `running_total` = sum of all `total_price`. |
 | `GET /bookings/{id}/qr` | `require_role("student")`. Verify booking belongs to current user. Generate QR image on-the-fly and return as `image/png`. |
 
-#### [NEW] `backend/app/routers/staff.py` — Items CRUD
+#### [NEW] `backend/app/routers/staff.py` - Items CRUD
 
 | Endpoint | Logic |
 |---|---|
@@ -424,12 +424,12 @@ class WastageLog(Base):
 
 | Endpoint | Logic |
 |---|---|
-| `POST /worker/scan` | `require_role("mess_worker")`. Accept `{qr_token}`. Execute atomic update: `UPDATE extras_bookings SET status='served', qr_used_at=now(), served_by=current_user.id WHERE qr_token=:token AND status='booked'`. Check `rowcount`: if 0, look up the token — if it exists with status=served, return `{already_served: true, served_at: ...}`; if not found, return 404. If 1, return booking details (item name, qty, student identifier). |
+| `POST /worker/scan` | `require_role("mess_worker")`. Accept `{qr_token}`. Execute atomic update: `UPDATE extras_bookings SET status='served', qr_used_at=now(), served_by=current_user.id WHERE qr_token=:token AND status='booked'`. Check `rowcount`: if 0, look up the token - if it exists with status=served, return `{already_served: true, served_at: ...}`; if not found, return 404. If 1, return booking details (item name, qty, student identifier). |
 | `GET /worker/bookings/today` | `require_role("mess_worker")`. All bookings from today with status=`booked`, showing item name, qty, student identifier. |
 
 ---
 
-### Step 6 — Weekly Recurrence Scheduler
+### Step 6 - Weekly Recurrence Scheduler
 
 #### [NEW] `backend/app/services/scheduler.py`
 
@@ -439,7 +439,7 @@ class WastageLog(Base):
 
 ---
 
-### Step 7 — Menu + Wastage + Dashboard
+### Step 7 - Menu + Wastage + Dashboard
 
 #### [NEW] Menu endpoints in `backend/app/routers/menu.py`
 
@@ -453,18 +453,18 @@ class WastageLog(Base):
 
 | Endpoint | Logic |
 |---|---|
-| `POST /staff/wastage` | `require_role("mess_staff")`. Accept `{date, bdmr, plain_wastage, plate_wastage}`. Upsert: if entry for that date exists, overwrite (only if date == today, else reject). Stamp `entered_by`, `entered_at`. |
+| `POST /staff/wastage` | `require_role("mess_staff")`. Accept non-negative `{date, bdmr, plain_wastage, plate_wastage}` values for the current India calendar date only. Upsert today's row and stamp `entered_by`, `entered_at`. |
 | `GET /staff/wastage` | `require_role("mess_staff")`. Return all wastage logs, newest first. |
 
 #### [NEW] Dashboard endpoint in `backend/app/routers/dashboard.py`
 
 | Endpoint | Logic |
 |---|---|
-| `GET /dashboard/summary` | `require_role("student")`. Compute: (1) 7-day rolling avg BDMR from last 7 `wastage_logs` entries by date. (2) Latest day's `plain_wastage`. (3) Latest day's `plate_wastage`. (4) `last_updated` = most recent `entered_at` from `wastage_logs`. Return `{avg_bdmr, plain_wastage, plate_wastage, last_updated}`. |
+| `GET /dashboard/summary` | `require_role("student")`. Compute: (1) BDMR average from entries in the latest seven India calendar days. (2) Latest day's `plain_wastage`. (3) Latest day's `plate_wastage`. (4) `wastage_date` = date of the plain and plate values. (5) `last_updated` = greatest `entered_at` from `wastage_logs`. Return `{avg_bdmr, plain_wastage, plate_wastage, wastage_date, last_updated}`. |
 
 ---
 
-### Step 8 — Frontend: Auth Pages
+### Step 8 - Frontend: Auth Pages
 
 #### [NEW] `frontend/src/lib/api.ts`
 
@@ -485,7 +485,7 @@ class WastageLog(Base):
 
 #### [NEW] Login page (`/login`)
 
-- Dark card with logo, "Hall 12 — Marathas" text.
+- Dark card with logo, "Hall 12 - Marathas" text.
 - Identifier + password fields, "Login" button (orange).
 - Link to "Student? Sign up here" → `/signup`.
 - Shows error toasts for invalid credentials, locked out, etc.
@@ -505,7 +505,7 @@ class WastageLog(Base):
 
 ---
 
-### Step 9 — Frontend: Hall Office Dashboard
+### Step 9 - Frontend: Hall Office Dashboard
 
 #### [NEW] `/hall-office/roll-numbers`
 
@@ -522,15 +522,15 @@ class WastageLog(Base):
 
 ---
 
-### Step 10 — Frontend: Student Dashboard
+### Step 10 - Frontend: Student Dashboard
 
 #### [NEW] `/student/dashboard`
 
 - **Wastage summary strip**: 3 cards in a row (responsive: stack on ≤375px).
   - Each card: label on top, large number below.
-  - Card 1: "Avg. BDMR (7-day)" — value from API.
-  - Card 2: "Plain Wastage" — latest.
-  - Card 3: "Plate Wastage" — latest.
+  - Card 1: "Avg. BDMR (7-day)" - value from API.
+  - Card 2: "Plain Wastage" - latest.
+  - Card 3: "Plate Wastage" - latest.
   - Below cards: "Last updated: Jun 30, 2026 at 8:42 PM" in muted text.
 
 - **Weekly menu**: Day-by-day cards or a table.
@@ -540,7 +540,7 @@ class WastageLog(Base):
 
 ---
 
-### Step 11 — Frontend: Student Browse / Book / History / QR
+### Step 11 - Frontend: Student Browse / Book / History / QR
 
 #### [NEW] `/student/browse`
 
@@ -558,7 +558,7 @@ class WastageLog(Base):
 
 ---
 
-### Step 12 — Frontend: Mess Staff Dashboard
+### Step 12 - Frontend: Mess Staff Dashboard
 
 #### [NEW] `/staff/items`
 
@@ -585,7 +585,7 @@ class WastageLog(Base):
 
 ---
 
-### Step 13 — Frontend: Mess Worker Scanner
+### Step 13 - Frontend: Mess Worker Scanner
 
 #### [NEW] `/worker/scan`
 
@@ -606,7 +606,7 @@ class WastageLog(Base):
 
 ---
 
-### Step 14 — README + SECURITY.md
+### Step 14 - README + SECURITY.md
 
 #### [NEW] `README.md`
 

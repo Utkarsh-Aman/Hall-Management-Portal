@@ -51,7 +51,7 @@ class VerifyOTPResponse(BaseModel):
     message: str = "OTP verified. Set your new password."
 
 
-class ChangePasswordRequest(BaseModel):
+class AuthenticatedChangePasswordRequest(BaseModel):
     """Authenticated user changing their password."""
     old_password: str
     new_password: str = Field(..., min_length=8, max_length=128)
@@ -83,7 +83,7 @@ class MustChangePasswordResponse(BaseModel):
 # Change password (forced)
 # ---------------------------------------------------------------------------
 
-class ChangePasswordRequest(BaseModel):
+class ForcedChangePasswordRequest(BaseModel):
     change_token: str
     new_password: str = Field(..., min_length=8, max_length=128)
 

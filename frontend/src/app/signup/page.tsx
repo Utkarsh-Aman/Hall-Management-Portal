@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Student Setup — Step 1: Roll No + Setup Code → Step 2: Set password & details.
+ * Student Setup - Step 1: Roll No + Setup Code → Step 2: Set password & details.
  */
 
 import React, { useState } from "react";

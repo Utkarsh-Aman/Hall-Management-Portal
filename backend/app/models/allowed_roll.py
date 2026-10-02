@@ -1,5 +1,5 @@
 """
-Allowed roll numbers table — populated by hall_office CSV upload.
+Allowed roll numbers table - populated by hall_office CSV upload.
 """
 
 from datetime import datetime

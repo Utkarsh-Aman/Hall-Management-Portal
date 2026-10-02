@@ -1,5 +1,5 @@
 """
-Email service — sends OTP emails.
+Email service - sends OTP emails.
 
 Uses a console backend in development (prints to stdout).
 Swap to real SMTP by setting SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS env vars.
@@ -22,7 +22,7 @@ class EmailBackend:
 
 
 class ConsoleEmailBackend(EmailBackend):
-    """Prints emails to console/log — for development."""
+    """Prints emails to console/log - for development."""
 
     def send(self, to: str, subject: str, body: str) -> None:
         logger.info(
@@ -34,7 +34,7 @@ class ConsoleEmailBackend(EmailBackend):
             "=============================================="
         )
         print(
-            f"\n📧 EMAIL → {to}\n"
+            f"\nEMAIL EMAIL → {to}\n"
             f"   Subject: {subject}\n"
             f"   Body: {body}\n"
         )
@@ -70,7 +70,7 @@ _backend = _get_backend()
 
 def send_otp_email(to: str, otp: str) -> None:
     """Send a 6-digit OTP verification email."""
-    subject = "Hall 12 — Your Verification Code"
+    subject = "Hall 12 - Your Verification Code"
     body = (
         f"Your verification code for Hall 12 (Marathas) Portal is:\n\n"
         f"    {otp}\n\n"

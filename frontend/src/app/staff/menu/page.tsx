@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * Mess staff — weekly menu editor (7×3 grid).
+ * Mess staff - weekly menu editor (7×3 grid).
  */
 
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { getDayName, getTodayWeekday } from "@/lib/utils";
-import type { MenuSlot, WeeklyMenuResponse } from "@/types";
+import type { WeeklyMenuResponse } from "@/types";
 
 const MEALS = ["breakfast", "lunch", "dinner"] as const;
 

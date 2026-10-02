@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Mess staff — all bookings table, filterable by date and item.
+ * Mess staff - all bookings table, filterable by date and item.
  */
 
 import React, { useEffect, useState } from "react";
@@ -36,7 +36,7 @@ export default function StaffBookingsPage() {
       let url = "/staff/bookings";
       const params = new URLSearchParams();
       if (filterDate) params.set("date", filterDate);
-      // Search is now client-side only — no backend query needed
+      // Search is now client-side only - no backend query needed
       if (params.toString()) url += `?${params.toString()}`;
 
       const data = await apiFetch<StaffBooking[]>(url);
@@ -73,6 +73,17 @@ export default function StaffBookingsPage() {
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status: "served" } : b));
     } catch (err: unknown) {
       toast((err as Error).message || "Failed to mark as served.", "error");
+    }
+  };
+
+  const handleCancelRequest = async (id: number, action: "approve" | "reject") => {
+    try {
+      await apiFetch(`/staff/bookings/${id}/cancel-request/${action}`, { method: "POST" });
+      const nextStatus = action === "approve" ? "cancelled" : "booked";
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: nextStatus } : b));
+      toast(`Cancellation request ${action === "approve" ? "approved" : "rejected"}.`, "success");
+    } catch (err: unknown) {
+      toast((err as Error).message || `Failed to ${action} request.`, "error");
     }
   };
 
@@ -230,7 +241,7 @@ export default function StaffBookingsPage() {
               onClick={() => setSearchQuery("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
             >
-              ✕
+              x
             </button>
           )}
         </div>
@@ -383,7 +394,7 @@ export default function StaffBookingsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {(b.status === "booked" || b.status === "cancel_requested") && (
+                    {b.status === "booked" && (
                       <div className="flex gap-2 justify-end">
                         <button
                           onClick={() => handleServe(b.id)}
@@ -396,6 +407,22 @@ export default function StaffBookingsPage() {
                           className="px-3 py-1.5 rounded-lg border border-error/30 text-error bg-error/10 text-xs font-semibold hover:bg-error-bg transition-colors"
                         >
                           Cancel
+                        </button>
+                      </div>
+                    )}
+                    {b.status === "cancel_requested" && (
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => handleCancelRequest(b.id, "approve")}
+                          className="px-3 py-1.5 rounded-lg border border-success/30 text-success bg-success/10 text-xs font-semibold hover:bg-success-bg transition-colors"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleCancelRequest(b.id, "reject")}
+                          className="px-3 py-1.5 rounded-lg border border-warning/30 text-warning bg-warning/10 text-xs font-semibold hover:bg-warning-bg transition-colors"
+                        >
+                          Reject
                         </button>
                       </div>
                     )}

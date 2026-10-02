@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import Header from "@/components/Header";
-import { useAuth } from "@/lib/auth";
+import { getRoleHome, useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 export default function WorkerLayout({
@@ -10,14 +10,16 @@ export default function WorkerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isLoading, isAuthenticated, serverWaking } = useAuth();
+  const { user, isLoading, isAuthenticated, serverWaking } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/login");
+      router.replace("/login");
+    } else if (!isLoading && user && user.role !== "mess_worker") {
+      router.replace(getRoleHome(user.role));
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, user, router]);
 
   if (isLoading) {
     return (
@@ -37,7 +39,7 @@ export default function WorkerLayout({
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated || user?.role !== "mess_worker") return null;
 
   return (
     <div className="flex flex-col min-h-screen">

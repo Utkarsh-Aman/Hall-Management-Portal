@@ -1,9 +1,12 @@
 """
-Hall office router — CSV upload and staff account management.
+Hall office router - CSV upload and staff account management.
 """
 
 import csv
 import io
+import re
+import secrets
+import string
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
@@ -26,7 +29,7 @@ router = APIRouter(prefix="/hall-office", tags=["hall-office"])
 
 
 # ---------------------------------------------------------------------------
-# CSV upload — replace mode
+# CSV upload - replace mode
 # ---------------------------------------------------------------------------
 
 @router.post(
@@ -55,7 +58,7 @@ def upload_roll_numbers(
 
     # Parse CSV
     try:
-        text = content.decode("utf-8")
+        text = content.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -68,12 +71,22 @@ def upload_roll_numbers(
         if not row or all(cell.strip() == "" for cell in row):
             continue
 
-        roll_no = row[0].strip() if len(row) > 0 else None
+        roll_no = row[0].strip().upper() if len(row) > 0 else None
         if not roll_no:
             continue
 
+        if row_idx == 0 and roll_no.lower().replace(" ", "_") in {"roll", "roll_no", "roll_number"}:
+            continue
+
+        if not re.fullmatch(r"[A-Za-z0-9-]{3,50}", roll_no):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid roll number on CSV row {row_idx + 1}.",
+            )
+
         name = row[1].strip() if len(row) > 1 and row[1].strip() else None
-        email = row[2].strip() if len(row) > 2 and row[2].strip() else None
+        # Student identity and password recovery always use the institute address.
+        email = f"{roll_no.lower()}@iitk.ac.in"
         room_number = row[3].strip() if len(row) > 3 and row[3].strip() else None
 
         parsed_rows.append({
@@ -145,15 +158,12 @@ def export_setup_codes(
     current_user: User = Depends(require_role("hall_office")),
     db: Session = Depends(get_db),
 ):
-    import random
-    import string
-    
     # 1. Fetch all AllowedRollNumber
     all_rolls = db.query(AllowedRollNumber).all()
     
     # 2. Fetch all registered student identifiers (emails) and roll_nos
     registered_users = db.query(User).filter(User.role == UserRole.student).all()
-    registered_emails = {u.identifier for u in registered_users if u.identifier}
+    registered_emails = {u.identifier.lower() for u in registered_users if u.identifier}
     registered_rolls = {u.roll_no for u in registered_users if u.roll_no}
     
     output = io.StringIO()
@@ -183,7 +193,7 @@ def export_setup_codes(
             if not roll.setup_code:
                 # 8 char random alphanumeric
                 chars = string.ascii_uppercase + string.digits
-                roll.setup_code = ''.join(random.choice(chars) for _ in range(8))
+                roll.setup_code = ''.join(secrets.choice(chars) for _ in range(8))
                 changed = True
             setup_code = roll.setup_code
             
@@ -223,7 +233,8 @@ def add_roll_number(
     current_user: User = Depends(require_role("hall_office")),
     db: Session = Depends(get_db),
 ):
-    existing = db.query(AllowedRollNumber).filter(AllowedRollNumber.roll_no == body.roll_no).first()
+    roll_no = body.roll_no.strip().upper()
+    existing = db.query(AllowedRollNumber).filter(AllowedRollNumber.roll_no == roll_no).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -231,20 +242,19 @@ def add_roll_number(
         )
 
     new_roll = AllowedRollNumber(
-        roll_no=body.roll_no,
+        roll_no=roll_no,
         name=body.name,
-        email=body.email,
+        email=f"{roll_no.lower()}@iitk.ac.in",
         room_number=body.room_number,
         uploaded_by=current_user.id,
     )
     db.add(new_roll)
 
     # Sync User table: Reactivate if the user account already exists
-    if body.email:
-        db.query(User).filter(
-            User.identifier == body.email.lower(), 
-            User.role == UserRole.student
-        ).update({"is_active": True}, synchronize_session=False)
+    db.query(User).filter(
+        User.roll_no == roll_no,
+        User.role == UserRole.student,
+    ).update({"is_active": True}, synchronize_session=False)
 
     db.commit()
     db.refresh(new_roll)
@@ -377,7 +387,7 @@ def toggle_staff_status(
 
 
 # ---------------------------------------------------------------------------
-# Delete staff account
+# Retire staff account without destroying audit history
 # ---------------------------------------------------------------------------
 
 @router.delete("/staff/{user_id}")
@@ -400,7 +410,7 @@ def delete_staff_account(
             detail="Staff account not found.",
         )
 
-    db.delete(user)
+    user.is_active = False
     db.commit()
 
-    return {"message": "Staff account deleted successfully."}
+    return {"message": "Staff account deactivated and retained for audit history."}

@@ -87,7 +87,7 @@ class BookingListResponse(BaseModel):
 
 
 class StaffBookingResponse(BaseModel):
-    """Booking view for mess_staff — includes student identifier."""
+    """Booking view for mess_staff - includes student identifier."""
     id: int
     student_identifier: str = ""
     student_name: str = ""

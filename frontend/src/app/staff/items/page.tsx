@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Mess staff — extras items CRUD.
+ * Mess staff - extras items CRUD.
  */
 
 import React, { useEffect, useState } from "react";
@@ -294,7 +294,7 @@ export default function StaffItemsPage() {
                   onClick={() => setSearchQuery("")}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
                 >
-                  ✕
+                  x
                 </button>
               )}
             </div>

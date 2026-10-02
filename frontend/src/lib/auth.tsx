@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Auth context — manages user session, login/logout, signup flow.
+ * Auth context - manages user session, login/logout, signup flow.
  * Includes retry logic for cold-start backends and keep-alive pings.
  */
 
@@ -23,9 +23,9 @@ import type {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 /** How many times to retry session restore on network/server error */
-const RESTORE_MAX_RETRIES = 3;
+const RESTORE_MAX_RETRIES = 12;
 /** Delay between retries in ms */
-const RESTORE_RETRY_DELAY = 3000;
+const RESTORE_RETRY_DELAY = 5000;
 /** Keep-alive interval: 14 minutes (before Render's 15-min sleep) */
 const KEEPALIVE_INTERVAL_MS = 14 * 60 * 1000;
 
@@ -55,11 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
 
-  // Keep-alive ping — prevents Render from sleeping the backend
+  // Keep-alive ping - prevents Render from sleeping the backend
   useEffect(() => {
     const pingHealth = () => {
       fetch(`${API_BASE}/health`, { method: "GET" }).catch(() => {
-        // Silently ignore — best-effort keepalive
+        // Silently ignore - best-effort keepalive
       });
     };
 
@@ -108,12 +108,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setServerWaking(false);
           setIsLoading(false);
-          return; // Success — exit retry loop
+          return; // Success - exit retry loop
         } catch (err: unknown) {
           lastError = err;
           const error = err as Error & { status?: number };
 
-          // If it's a 401 (no valid refresh token), don't retry — user needs to log in
+          // If it's a 401 (no valid refresh token), don't retry - user needs to log in
           if (error.status === 401) {
             setAccessToken(null);
             setUserState(null);
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          // Network error or server error (502, 503, etc.) — server might be cold-starting
+          // Network error or server error (502, 503, etc.) - server might be cold-starting
           if (attempt < RESTORE_MAX_RETRIES - 1) {
             setServerWaking(true);
             await new Promise((resolve) => setTimeout(resolve, RESTORE_RETRY_DELAY));
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // All retries exhausted — no valid session
+      // All retries exhausted - no valid session
       console.warn("Session restore failed after retries:", lastError);
       setAccessToken(null);
       setUserState(null);

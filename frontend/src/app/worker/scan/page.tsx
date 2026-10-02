@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * QR Scanner page for mess_worker — full-screen, phone-friendly.
+ * QR Scanner page for mess_worker - full-screen, phone-friendly.
  * Uses html5-qrcode for camera-based scanning.
  */
 
@@ -11,9 +11,16 @@ import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import type { ScanResult, ScanSuccess, ScanAlreadyUsed } from "@/types";
 
+const QR_SCANNING_ENABLED =
+  process.env.NEXT_PUBLIC_QR_SCANNING_ENABLED === "true";
+
+type WindowWithWebkitAudio = Window & typeof globalThis & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
 const playBeep = (type: "success" | "error") => {
   try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
     const osc = ctx.createOscillator();
@@ -124,7 +131,7 @@ export default function ScanPage() {
           handleScan(decodedText);
         },
         () => {
-          // QR scan error — ignore (happens every frame without a QR code)
+          // QR scan error - ignore (happens every frame without a QR code)
         }
       );
 
@@ -146,6 +153,26 @@ export default function ScanPage() {
 
   const isAlreadyUsed = scanResult && "already_served" in scanResult;
   const isSuccess = scanResult && !isAlreadyUsed;
+
+  if (!QR_SCANNING_ENABLED) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-56px)] px-4 py-6">
+        <div className="w-full max-w-sm glass-card p-6 rounded-2xl text-center space-y-4">
+          <div className="text-4xl" aria-hidden="true">Paused</div>
+          <h1 className="text-lg font-bold text-text-primary">QR scanning is temporarily disabled</h1>
+          <p className="text-sm text-text-muted">
+            Use today&apos;s manual booking queue until scanning is enabled again.
+          </p>
+          <Link
+            href="/worker/queue"
+            className="inline-flex w-full justify-center py-3 rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold transition-colors"
+          >
+            Open manual queue
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-56px)] px-4 py-6">
@@ -172,7 +199,7 @@ export default function ScanPage() {
               disabled={isProcessing}
               className="w-full py-4 rounded-2xl bg-accent hover:bg-accent-hover text-white text-lg font-bold transition-colors min-h-[56px]"
             >
-              {isProcessing ? "Processing…" : "📷 Start Scanner"}
+              {isProcessing ? "Processing…" : "Start Scanner"}
             </button>
           ) : (
             <button
@@ -185,11 +212,11 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* Scan result — success */}
+      {/* Scan result - success */}
       {isSuccess && (
         <div className="w-full max-w-sm animate-fade-in">
           <div className="glass-card p-6 rounded-2xl border-success/30 bg-success-bg text-center space-y-4">
-            <div className="text-5xl">✓</div>
+            <div className="text-5xl">OK</div>
             <h2 className="text-lg font-bold text-success">Marked as Served</h2>
             <div className="space-y-2 text-sm">
               <p className="text-text-secondary">
@@ -215,11 +242,11 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* Scan result — already used */}
+      {/* Scan result - already used */}
       {isAlreadyUsed && (
         <div className="w-full max-w-sm animate-fade-in">
           <div className="glass-card p-6 rounded-2xl border-warning/30 bg-warning-bg text-center space-y-4">
-            <div className="text-5xl">⚠</div>
+            <div className="text-5xl">Warning:</div>
             <h2 className="text-lg font-bold text-warning">Already Used</h2>
             <p className="text-sm text-text-muted">
               This QR code was served at{" "}

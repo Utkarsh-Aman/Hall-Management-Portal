@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Browse extras — view available items and book with quantity selector.
+ * Browse extras - view available items and book with quantity selector.
  */
 
 import React, { useEffect, useState } from "react";

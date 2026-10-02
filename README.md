@@ -1,15 +1,15 @@
-# Hall 12 — Marathas Portal
+# Hall 12 - Marathas Portal
 
 Hall Management Portal for IIT Kanpur Hall of Residence XII (Marathas). Students browse and book paid food extras, receive a single-use QR code, and a mess worker scans it to mark the item served. Mess staff manage extras, the weekly menu, and daily wastage figures.
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 14+ (App Router), TypeScript, Tailwind CSS |
-| Backend | FastAPI, SQLAlchemy ORM, Pydantic v2 |
-| Database | PostgreSQL (Supabase-hosted) |
-| Auth | Custom JWT (access + refresh tokens), bcrypt |
+| Layer | Technology                                                        |
+|---|-------------------------------------------------------------------|
+| Frontend | Next.js 14+ (App Router), TypeScript, Tailwind CSS                |
+| Backend | FastAPI, SQLAlchemy ORM, Pydantic v2                              |
+| Database | PostgreSQL (Supabase-hosted)                                      |
+| Auth | Custom JWT (access + refresh tokens), bcrypt                      |
 | QR | `qrcode` (Python) for generation, `html5-qrcode` (JS) for scanning |
 
 ## Architecture Diagram
@@ -92,7 +92,7 @@ uv sync
 
 # Create your .env file
 cp .env.example .env
-# Edit .env — fill in DATABASE_URL, JWT_SECRET, FRONTEND_URL
+# Edit .env - fill in DATABASE_URL, JWT_SECRET, FRONTEND_URL
 
 #for first time only
 uv run alembic revision --autogenerate -m "initial"
@@ -127,9 +127,9 @@ npm run dev
 
 Use the seeded hall_office admin account:
 - **Identifier:** `admin@hall12`
-- **Password:** `Hall12Admin!`
+- **Password:** `Hall12kaAdmin!`
 
-> ⚠️ Change this password in production.
+> Warning: Change this password in production.
 
 From here you can:
 1. Upload a student roll number CSV (with Name and Room Number)
@@ -176,15 +176,15 @@ HMP/
 
 See `PROJECT.md` for the full API specification. Key route groups:
 
-- `POST /auth/*` — Student Setup flow, Forgot Password OTP, login, refresh, logout
-- `GET /dashboard/summary` — Student wastage summary
-- `GET /menu/weekly` — Weekly menu
-- `GET /items` — Available extras
-- `POST /bookings` — Create a booking
-- `/staff/*` — Item CRUD, bookings list, menu editor, wastage
-- `/worker/*` — QR scan, today's queue
-- `/hall-office/*` — CSV upload, staff accounts
-- `/notices` — View and post announcements
+- `POST /auth/*` - Student Setup flow, Forgot Password OTP, login, refresh, logout
+- `GET /dashboard/summary` - Student wastage summary
+- `GET /menu/weekly` - Weekly menu
+- `GET /items` - Available extras
+- `POST /bookings` - Create a booking
+- `/staff/*` - Item CRUD, bookings list, menu editor, wastage
+- `/worker/*` - QR scan, today's queue
+- `/hall-office/*` - CSV upload, staff accounts
+- `/notices` - View and post announcements
 
 ## Recent Features
 - **Notice Board**: Hall Office and Mess Staff can post real-time announcements visible on the student dashboard.

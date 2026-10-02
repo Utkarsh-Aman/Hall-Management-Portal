@@ -4,15 +4,15 @@ Pydantic schemas for wastage logs and dashboard summary.
 
 from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class WastageCreate(BaseModel):
     """Staff enters daily wastage figures."""
     date: date
-    bdmr: float
-    plain_wastage: float
-    plate_wastage: float
+    bdmr: float = Field(..., ge=0, allow_inf_nan=False)
+    plain_wastage: float = Field(..., ge=0, allow_inf_nan=False)
+    plate_wastage: float = Field(..., ge=0, allow_inf_nan=False)
 
 
 class WastageResponse(BaseModel):
@@ -32,4 +32,5 @@ class DashboardSummary(BaseModel):
     avg_bdmr: float | None = None
     plain_wastage: float | None = None
     plate_wastage: float | None = None
+    wastage_date: date | None = None
     last_updated: datetime | None = None

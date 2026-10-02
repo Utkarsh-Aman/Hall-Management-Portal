@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Hall 12 — Marathas Portal",
+  title: "Hall 12 - Marathas Portal",
   description:
     "Hall Management Portal for IIT Kanpur Hall of Residence XII (Marathas)",
   icons: {

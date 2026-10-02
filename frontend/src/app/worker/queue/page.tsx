@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Today's booking queue — fallback for when the scanner can't be used.
+ * Today's booking queue - fallback for when the scanner can't be used.
  */
 
 import React, { useEffect, useState } from "react";

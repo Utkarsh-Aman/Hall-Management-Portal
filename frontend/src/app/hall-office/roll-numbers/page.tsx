@@ -19,7 +19,6 @@ export default function RollNumbersPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [newRoll, setNewRoll] = useState("");
   const [newName, setNewName] = useState("");
-  const [newEmail, setNewEmail] = useState("");
   const [newRoom, setNewRoom] = useState("");
 
   const { toast } = useToast();
@@ -38,7 +37,10 @@ export default function RollNumbersPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRolls();
+    // The initial fetch is intentionally mount-only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleUpload = async () => {
@@ -94,7 +96,6 @@ export default function RollNumbersPage() {
         body: JSON.stringify({
           roll_no: newRoll.trim(),
           name: newName.trim() || undefined,
-          email: newEmail.trim() || undefined,
           room_number: newRoom.trim() || undefined,
         }),
       });
@@ -102,7 +103,6 @@ export default function RollNumbersPage() {
       toast(`Added ${newRoll.trim()}`, "success");
       setNewRoll("");
       setNewName("");
-      setNewEmail("");
       setNewRoom("");
       setIsAdding(false);
       fetchRolls();
@@ -178,7 +178,7 @@ export default function RollNumbersPage() {
         <div className="glass-card p-6 rounded-xl space-y-5">
           <h2 className="text-sm font-semibold text-text-primary">Bulk Upload CSV</h2>
           <p className="text-xs text-warning">
-            ⚠ Uploading a CSV will <span className="font-bold">replace</span> all existing roll numbers.
+            Warning: Uploading a CSV will <span className="font-bold">replace</span> all existing roll numbers.
           </p>
           <div>
             <input
@@ -189,9 +189,9 @@ export default function RollNumbersPage() {
               className="w-full text-sm text-text-secondary file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white file:cursor-pointer hover:file:bg-accent-hover"
             />
             <p className="text-xs mt-2 text-text-muted">
-              CSV must have exactly 4 columns in this exact order: <br/>
+              CSV columns: <br/>
               <span className="font-mono text-text-secondary">Roll No, Name, Email, Room Number</span> <br/>
-              (No headers required)
+              Email is normalized to roll@iitk.ac.in. A header row is optional.
             </p>
           </div>
           <button
@@ -231,13 +231,6 @@ export default function RollNumbersPage() {
                   placeholder="Name"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
                   className="w-full bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
                 />
                 <input
@@ -308,9 +301,9 @@ export default function RollNumbersPage() {
                 filteredRolls.map((r) => (
                   <tr key={r.roll_no} className="hover:bg-bg-elevated/30 transition-colors">
                     <td className="px-6 py-3 font-medium text-text-primary">{r.roll_no}</td>
-                    <td className="px-6 py-3 text-text-secondary">{r.name || "—"}</td>
-                    <td className="px-6 py-3 text-text-secondary">{r.email || "—"}</td>
-                    <td className="px-6 py-3 text-text-secondary">{r.room_number || "—"}</td>
+                    <td className="px-6 py-3 text-text-secondary">{r.name || "-"}</td>
+                    <td className="px-6 py-3 text-text-secondary">{r.email || "-"}</td>
+                    <td className="px-6 py-3 text-text-secondary">{r.room_number || "-"}</td>
                     <td className="px-6 py-3 text-text-secondary">
                       {r.setup_code ? (
                         <div className="flex items-center gap-2">
@@ -330,7 +323,7 @@ export default function RollNumbersPage() {
                           </button>
                         </div>
                       ) : (
-                        <span className="text-xs text-text-muted italic opacity-50">—</span>
+                        <span className="text-xs text-text-muted italic opacity-50">-</span>
                       )}
                     </td>
                     <td className="px-6 py-3 text-right">

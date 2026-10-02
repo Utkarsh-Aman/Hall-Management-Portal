@@ -1,4 +1,4 @@
-# Security Design — Hall 12 Marathas Portal
+# Security Design - Hall 12 Marathas Portal
 
 This document outlines the security decisions made for this MVP.
 
@@ -16,13 +16,13 @@ This document outlines the security decisions made for this MVP.
 ### Student Signup OTP Flow
 1. Roll number verified against an allow-list uploaded by hall_office.
 2. A 6-digit OTP is sent to the student's `@iitk.ac.in` email.
-3. OTP is hashed with bcrypt before storage — even a database leak won't expose valid OTPs.
+3. OTP is hashed with bcrypt before storage - even a database leak won't expose valid OTPs.
 4. OTP expires in 10 minutes. Max 5 verification attempts per OTP.
 5. OTP requests are rate-limited: max 3 per email per 15 minutes.
 
 ### Staff Account Creation
 - Hall_office creates accounts; the system generates a **strong random temporary password** server-side using `secrets.token_urlsafe(12)`.
-- Hall_office **cannot** choose or type a password — the temp password is shown once on screen and never logged.
+- Hall_office **cannot** choose or type a password - the temp password is shown once on screen and never logged.
 - Staff must change their password on first login (`must_change_password` flag).
 
 ## Rate Limiting
@@ -34,7 +34,7 @@ This document outlines the security decisions made for this MVP.
 ## Authorization
 
 - Every API endpoint validates the JWT `role` claim **server-side** via the `require_role()` dependency.
-- Role checks are enforced at the middleware level — not just by hiding UI elements.
+- Role checks are enforced at the middleware level - not just by hiding UI elements.
 - A student token cannot access `/staff/*`, `/worker/*`, or `/hall-office/*` routes, and vice versa.
 
 ## QR Code Atomicity
@@ -50,14 +50,14 @@ This document outlines the security decisions made for this MVP.
 
 ## Input Validation
 
-- **CSV upload**: Server-side validation of file type (`.csv`), file size (max 1MB), and content (parsed with Python's `csv` library — no `eval`, no arbitrary code execution).
+- **CSV upload**: Server-side validation of file type (`.csv`), file size (max 1MB), and content (parsed with Python's `csv` library - no `eval`, no arbitrary code execution).
 - **All inputs**: Validated via Pydantic v2 schemas with field constraints (min/max length, regex patterns, numeric bounds).
 - **SQL**: All queries use SQLAlchemy ORM (parameterized queries). No raw string-interpolated SQL anywhere.
 
 ## CORS
 
 - CORS is configured to allow only the deployed frontend origin (from `FRONTEND_URL` environment variable).
-- The default is `http://localhost:3000` for development — never `*`.
+- The default is `http://localhost:3000` for development - never `*`.
 
 ## Secrets Management
 

@@ -1,5 +1,5 @@
 """
-User model — covers all four roles: student, mess_staff, mess_worker, hall_office.
+User model - covers all four roles: student, mess_staff, mess_worker, hall_office.
 """
 
 import enum

@@ -1,5 +1,5 @@
 """
-FastAPI dependencies — database session, authentication, role guards, rate limiting.
+FastAPI dependencies - database session, authentication, role guards, rate limiting.
 """
 
 import time as time_mod
@@ -29,7 +29,7 @@ def get_db():
 
 
 # ---------------------------------------------------------------------------
-# Authentication — extract user from JWT
+# Authentication - extract user from JWT
 # ---------------------------------------------------------------------------
 
 def get_current_user(
@@ -116,7 +116,7 @@ def require_role(*allowed_roles: str):
 
 
 # ---------------------------------------------------------------------------
-# Rate limiting (in-memory — single-process MVP)
+# Rate limiting (in-memory - single-process MVP)
 # ---------------------------------------------------------------------------
 # Structure: { key: [(timestamp, ...)] }
 # For production, swap to Redis-based rate limiting.

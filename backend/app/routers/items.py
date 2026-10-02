@@ -1,8 +1,9 @@
 """
-Items router — student-facing view of available extras.
+Items router - student-facing view of available extras.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,8 @@ def list_available_items(
 ):
     """Return active extras items from the current meal onwards until tomorrow's dinner."""
     now = datetime.now(timezone.utc).replace(tzinfo=None)
+    today_ist = datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    tomorrow_ist = today_ist + timedelta(days=1)
     
     # We want items whose closes_at is in the future
     # Or, we can just return items where opens_at <= now <= closes_at for the "currently bookable" items.
@@ -33,7 +36,10 @@ def list_available_items(
         db.query(ExtrasItem)
         .filter(
             ExtrasItem.is_active.is_(True),
-            ExtrasItem.closes_at > now
+            ExtrasItem.opens_at <= now,
+            ExtrasItem.closes_at > now,
+            ExtrasItem.date >= today_ist,
+            ExtrasItem.date <= tomorrow_ist,
         )
         .order_by(ExtrasItem.opens_at)
         .all()

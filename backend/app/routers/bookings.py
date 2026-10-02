@@ -1,5 +1,5 @@
 """
-Bookings router — student creates bookings, views history, gets QR images.
+Bookings router - student creates bookings, views history, gets QR images.
 """
 
 from datetime import datetime, timezone
@@ -13,6 +13,7 @@ import io
 import csv
 from datetime import date
 
+from app.config import settings
 from app.dependencies import get_db, require_role
 from app.models.extras import BookingStatus, ExtrasBooking, ExtrasItem
 from app.models.user import User
@@ -21,7 +22,6 @@ from app.schemas.extras import (
     BookingListResponse,
     BookingResponse,
 )
-from app.services.qr_service import generate_qr_image
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -46,6 +46,33 @@ def create_booking(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found or is no longer available.",
+        )
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if now < item.opens_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Booking has not opened yet.",
+        )
+    if now >= item.closes_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Booking window has closed.",
+        )
+
+    existing_booking = (
+        db.query(ExtrasBooking)
+        .filter(
+            ExtrasBooking.student_id == current_user.id,
+            ExtrasBooking.item_id == item.id,
+            ExtrasBooking.status != BookingStatus.cancelled,
+        )
+        .first()
+    )
+    if existing_booking:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already have a booking for this item. Modify the existing booking instead.",
         )
 
     # Calculate total price (locked at booking time)
@@ -188,6 +215,12 @@ def get_booking_qr(
     current_user: User = Depends(require_role("student")),
     db: Session = Depends(get_db),
 ):
+    if not settings.QR_SCANNING_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="QR codes are temporarily disabled.",
+        )
+
     booking = (
         db.query(ExtrasBooking)
         .filter(
@@ -201,6 +234,15 @@ def get_booking_qr(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Booking not found.",
         )
+
+    if booking.status != BookingStatus.booked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="QR is available only for an active booking.",
+        )
+
+    # Keep Pillow/qrcode off the API cold-start path; import only when requested.
+    from app.services.qr_service import generate_qr_image
 
     png_bytes = generate_qr_image(booking.qr_token)
 
@@ -227,6 +269,9 @@ def modify_booking(
     
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
+
+    if booking.status != BookingStatus.booked:
+        raise HTTPException(status_code=400, detail="Only active bookings can be modified.")
         
     item = booking.item
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -255,6 +300,9 @@ def cancel_booking(
     
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
+
+    if booking.status != BookingStatus.booked:
+        raise HTTPException(status_code=400, detail="Only active bookings can be cancelled.")
         
     item = booking.item
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -282,6 +330,13 @@ def request_cancel_booking(
         
     if booking.status != BookingStatus.booked:
         raise HTTPException(status_code=400, detail="Cannot request cancellation for this booking.")
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if now < booking.item.closes_at:
+        raise HTTPException(
+            status_code=400,
+            detail="Booking is still open. Cancel it directly instead.",
+        )
         
     booking.status = BookingStatus.cancel_requested
     db.commit()

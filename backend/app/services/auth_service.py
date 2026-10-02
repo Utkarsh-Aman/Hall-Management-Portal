@@ -1,5 +1,5 @@
 """
-Authentication service — JWT token creation/verification, password hashing, OTP generation.
+Authentication service - JWT token creation/verification, password hashing, OTP generation.
 """
 
 import secrets

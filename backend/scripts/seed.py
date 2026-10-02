@@ -1,5 +1,5 @@
 """
-Seed script — creates the initial hall_office admin account.
+Seed script - creates the initial hall_office admin account.
 
 Usage:
     cd backend
@@ -27,7 +27,7 @@ def seed_hall_office():
 
         existing = db.query(User).filter(User.identifier == identifier).first()
         if existing:
-            print(f"✓ Hall office account '{identifier}' already exists. Skipping.")
+            print(f"OK Hall office account '{identifier}' already exists. Skipping.")
             return
 
         user = User(
@@ -43,16 +43,16 @@ def seed_hall_office():
         db.add(user)
         db.commit()
 
-        print(f"✓ Hall office account created:")
+        print(f"OK Hall office account created:")
         print(f"  Identifier: {identifier}")
         print(f"  Password:   Hall12kaAdmin!")
         print(f"  Role:       hall_office")
         print()
-        print("  ⚠ Changed this password in production chill!")
+        print("  Warning: Change this password immediately after first login.")
 
     except Exception as e:
         db.rollback()
-        print(f"✗ Error seeding hall_office account: {e}")
+        print(f"Error Error seeding hall_office account: {e}")
         raise
     finally:
         db.close()
