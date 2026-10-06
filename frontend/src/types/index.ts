@@ -114,6 +114,7 @@ export interface DashboardSummary {
   avg_bdmr: number | null;
   plain_wastage: number | null;
   plate_wastage: number | null;
+  wastage_date: string | null;
   last_updated: string | null;
 }
 

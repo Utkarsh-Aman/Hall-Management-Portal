@@ -33,5 +33,5 @@ class MenuSlotResponse(BaseModel):
 
 
 class WeeklyMenuResponse(BaseModel):
-    """Full weekly menu — list of all slots."""
+    """Full weekly menu - list of all slots."""
     slots: list[MenuSlotResponse]

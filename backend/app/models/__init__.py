@@ -1,4 +1,4 @@
-# Models package — import all models here so Alembic can auto-detect them.
+# Models package - import all models here so Alembic can auto-detect them.
 
 from app.models.user import User, UserRole
 from app.models.allowed_roll import AllowedRollNumber

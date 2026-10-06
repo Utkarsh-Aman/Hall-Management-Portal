@@ -1,12 +1,14 @@
 """
-Worker router — QR scanning and today's booking queue.
+Worker router - QR scanning and today's booking queue.
 """
 
-from datetime import datetime, time, timezone
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.dependencies import get_db, require_role
 from app.models.extras import BookingStatus, ExtrasBooking, ExtrasItem
 from app.models.user import User
@@ -16,7 +18,7 @@ router = APIRouter(prefix="/worker", tags=["worker"])
 
 
 # ---------------------------------------------------------------------------
-# Atomic QR scan — mark served
+# Atomic QR scan - mark served
 # ---------------------------------------------------------------------------
 
 @router.post("/scan")
@@ -25,14 +27,20 @@ def scan_qr(
     current_user: User = Depends(require_role("mess_worker")),
     db: Session = Depends(get_db),
 ):
+    if not settings.QR_SCANNING_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="QR scanning is temporarily disabled. Use the manual queue instead.",
+        )
+
     now = datetime.now(timezone.utc)
 
-    # Atomic conditional update: only succeeds if status is still 'booked' or 'cancel_requested'
+    # Atomic conditional update: only an active booking can be served.
     rows_updated = (
         db.query(ExtrasBooking)
         .filter(
             ExtrasBooking.qr_token == body.qr_token,
-            ExtrasBooking.status.in_([BookingStatus.booked, BookingStatus.cancel_requested]),
+            ExtrasBooking.status == BookingStatus.booked,
         )
         .update(
             {
@@ -75,9 +83,12 @@ def scan_qr(
             detail="QR code not recognized.",
         )
 
-    # Already served
-    return ScanAlreadyUsedResponse(
-        served_at=booking.qr_used_at,
+    if booking.status == BookingStatus.served and booking.qr_used_at is not None:
+        return ScanAlreadyUsedResponse(served_at=booking.qr_used_at)
+
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"Booking is {booking.status.value.replace('_', ' ')} and cannot be served.",
     )
 
 
@@ -90,13 +101,14 @@ def todays_bookings(
     current_user: User = Depends(require_role("mess_worker")),
     db: Session = Depends(get_db),
 ):
-    today_start = datetime.combine(datetime.now(timezone.utc).date(), time.min)
+    today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
 
     bookings = (
         db.query(ExtrasBooking)
+        .join(ExtrasItem, ExtrasBooking.item_id == ExtrasItem.id)
         .filter(
-            ExtrasBooking.booked_at >= today_start,
-            ExtrasBooking.status.in_([BookingStatus.booked, BookingStatus.cancel_requested]),
+            ExtrasItem.date == today,
+            ExtrasBooking.status == BookingStatus.booked,
         )
         .order_by(ExtrasBooking.booked_at.asc())
         .all()

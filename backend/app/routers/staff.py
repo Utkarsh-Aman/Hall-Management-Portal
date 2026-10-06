@@ -1,10 +1,11 @@
 """
-Staff router — extras item CRUD, booking views, wastage management.
+Staff router - extras item CRUD, booking views, wastage management.
 """
 
-from datetime import date, datetime, time, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 import csv
 import io
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 
@@ -13,7 +14,6 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, require_role
-from sqlalchemy import func
 from app.models.extras import ExtrasBooking, ExtrasItem, BookingStatus
 from app.models.user import User
 from app.models.wastage import WastageLog
@@ -35,12 +35,9 @@ router = APIRouter(prefix="/staff", tags=["staff"])
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _compute_prep_time(opens_at: time, closes_at: time) -> int:
+def _compute_prep_time(opens_at: datetime, closes_at: datetime) -> int:
     """Compute prep time in minutes from open→close times."""
-    open_mins = opens_at.hour * 60 + opens_at.minute
-    close_mins = closes_at.hour * 60 + closes_at.minute
-    diff = close_mins - open_mins
-    return max(diff, 0)
+    return max(int((closes_at - opens_at).total_seconds() // 60), 0)
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +51,7 @@ def create_item(
     db: Session = Depends(get_db),
 ):
     opens_at = body.closes_at - timedelta(hours=48)
-    prep_time = _compute_prep_time(opens_at.time(), body.closes_at.time())
+    prep_time = _compute_prep_time(opens_at, body.closes_at)
 
     item = ExtrasItem(
         name=body.name,
@@ -65,6 +62,11 @@ def create_item(
         closes_at=body.closes_at,
         prep_time_mins=prep_time,
         is_recurring=body.is_recurring,
+        recurring_weekday=(
+            body.recurring_weekday
+            if body.recurring_weekday is not None
+            else body.date.weekday()
+        ) if body.is_recurring else None,
         is_active=True,
         created_by=current_user.id,
     )
@@ -110,11 +112,17 @@ def update_item(
         item.opens_at = item.closes_at - timedelta(hours=48)
     if body.is_recurring is not None:
         item.is_recurring = body.is_recurring
+        if not body.is_recurring:
+            item.recurring_weekday = None
+    if body.recurring_weekday is not None:
+        item.recurring_weekday = body.recurring_weekday
+    elif item.is_recurring and body.date is not None:
+        item.recurring_weekday = body.date.weekday()
     if body.is_active is not None:
         item.is_active = body.is_active
 
     # Recompute prep time
-    item.prep_time_mins = _compute_prep_time(item.opens_at.time(), item.closes_at.time())
+    item.prep_time_mins = _compute_prep_time(item.opens_at, item.closes_at)
 
     db.commit()
     db.refresh(item)
@@ -163,9 +171,12 @@ def delete_booking_staff(
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
     
-    db.delete(booking)
+    if booking.status == BookingStatus.served:
+        raise HTTPException(status_code=400, detail="A served booking cannot be cancelled.")
+
+    booking.status = BookingStatus.cancelled
     db.commit()
-    return {"message": "Booking deleted."}
+    return {"message": "Booking cancelled."}
 
 @router.post("/bookings/{booking_id}/serve")
 def serve_booking_staff(
@@ -177,13 +188,48 @@ def serve_booking_staff(
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
     
-    if booking.status in (BookingStatus.cancelled, BookingStatus.cancel_requested):
-        raise HTTPException(status_code=400, detail="Cannot serve a cancelled booking.")
-        
+    if booking.status != BookingStatus.booked:
+        raise HTTPException(status_code=400, detail="Only an active booking can be served.")
+
     booking.status = BookingStatus.served
     booking.qr_used_at = datetime.now(timezone.utc)
+    booking.served_by = current_user.id
     db.commit()
     return {"message": "Booking marked as served."}
+
+
+@router.post("/bookings/{booking_id}/cancel-request/approve")
+def approve_cancel_request(
+    booking_id: int,
+    current_user: User = Depends(require_role("mess_staff")),
+    db: Session = Depends(get_db),
+):
+    booking = db.query(ExtrasBooking).filter(ExtrasBooking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found.")
+    if booking.status != BookingStatus.cancel_requested:
+        raise HTTPException(status_code=400, detail="This booking has no pending cancellation request.")
+
+    booking.status = BookingStatus.cancelled
+    db.commit()
+    return {"message": "Cancellation request approved."}
+
+
+@router.post("/bookings/{booking_id}/cancel-request/reject")
+def reject_cancel_request(
+    booking_id: int,
+    current_user: User = Depends(require_role("mess_staff")),
+    db: Session = Depends(get_db),
+):
+    booking = db.query(ExtrasBooking).filter(ExtrasBooking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found.")
+    if booking.status != BookingStatus.cancel_requested:
+        raise HTTPException(status_code=400, detail="This booking has no pending cancellation request.")
+
+    booking.status = BookingStatus.booked
+    db.commit()
+    return {"message": "Cancellation request rejected."}
 
 @router.post("/items/{item_id}/bookings/bulk-delete")
 def bulk_delete_bookings(
@@ -259,31 +305,42 @@ def export_extras_csv(
     db: Session = Depends(get_db),
 ):
     query = (
-        db.query(
-            User.identifier.label("roll_no"),
-            User.name.label("name"),
-            User.room_no.label("room_no"),
-            func.sum(ExtrasBooking.total_price).label("total_amount")
-        )
-        .join(ExtrasBooking, User.id == ExtrasBooking.student_id)
+        db.query(ExtrasBooking, ExtrasItem, User)
         .join(ExtrasItem, ExtrasBooking.item_id == ExtrasItem.id)
+        .join(User, ExtrasBooking.student_id == User.id)
         .filter(
             ExtrasItem.date >= start_date,
             ExtrasItem.date <= end_date,
-            ExtrasBooking.status == BookingStatus.served
+            ExtrasBooking.status.in_([
+                BookingStatus.booked,
+                BookingStatus.served,
+                BookingStatus.missed,
+            ]),
         )
-        .group_by(User.identifier, User.name, User.room_no)
-        .order_by(User.identifier)
+        .order_by(ExtrasItem.date, ExtrasItem.meal_type, User.roll_no, ExtrasItem.name)
     )
 
     results = query.all()
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Roll Number", "Name", "Room Number", "Total Extras Amount"])
+    writer.writerow([
+        "Date", "Meal", "Roll Number", "Name", "Room Number",
+        "Item", "Quantity", "Status", "Amount (INR)",
+    ])
 
-    for row in results:
-        writer.writerow([row.roll_no, row.name, row.room_no or "", f"{row.total_amount:.2f}"])
+    for booking, item, student in results:
+        writer.writerow([
+            item.date,
+            item.meal_type.value.capitalize(),
+            student.roll_no or student.identifier.split("@")[0],
+            student.name,
+            student.room_no or "",
+            item.name,
+            booking.qty,
+            booking.status.value.upper(),
+            f"{booking.total_price:.2f}",
+        ])
 
     output.seek(0)
     return StreamingResponse(
@@ -305,9 +362,15 @@ def upsert_wastage(
     current_user: User = Depends(require_role("mess_staff")),
     db: Session = Depends(get_db),
 ):
-    today = date.today()
+    today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
 
-    # Only allow editing today's entry or creating a new one
+    if body.date != today:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Wastage can only be entered or edited for today's date in India time.",
+        )
+
+    # There is exactly one editable entry for the current India calendar date.
     existing = (
         db.query(WastageLog)
         .filter(WastageLog.date == body.date)
@@ -315,11 +378,6 @@ def upsert_wastage(
     )
 
     if existing:
-        if body.date != today:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Can only edit today's wastage entry.",
-            )
         existing.bdmr = body.bdmr
         existing.plain_wastage = body.plain_wastage
         existing.plate_wastage = body.plate_wastage

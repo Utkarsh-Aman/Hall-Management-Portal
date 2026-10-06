@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Toast notification system — provides feedback on user actions.
+ * Toast notification system - provides feedback on user actions.
  */
 
 import React, {
@@ -52,27 +52,29 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   };
 
   const icons: Record<ToastType, string> = {
-    success: "✓",
-    error: "✗",
-    warning: "⚠",
-    info: "ℹ",
+    success: "",
+    error: "",
+    warning: "Warning:",
+    info: "Info",
   };
 
   return (
     <ToastContext.Provider value={{ toast: addToast }}>
       {children}
 
-      {/* Toast container — fixed top-right */}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+      {/* Toast container - fixed top-right */}
+      <div className="fixed top-3 inset-x-3 z-[100] flex flex-col gap-2 pointer-events-none sm:top-4 sm:left-auto sm:right-4 sm:w-full sm:max-w-sm">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`toast-enter pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl border backdrop-blur-sm shadow-lg cursor-pointer ${typeStyles[t.type]}`}
+            className={`toast-enter pointer-events-auto flex items-start gap-2 px-3 py-2.5 rounded-lg border backdrop-blur-sm shadow-lg cursor-pointer sm:gap-3 sm:px-4 sm:py-3 sm:rounded-xl ${typeStyles[t.type]}`}
             onClick={() => removeToast(t.id)}
             role="alert"
           >
-            <span className="text-lg flex-shrink-0 mt-0.5">{icons[t.type]}</span>
-            <p className="text-sm font-medium leading-snug">{t.message}</p>
+            {icons[t.type] && (
+              <span className="text-sm flex-shrink-0 sm:text-lg sm:mt-0.5">{icons[t.type]}</span>
+            )}
+            <p className="text-xs font-medium leading-snug break-words sm:text-sm">{t.message}</p>
           </div>
         ))}
       </div>

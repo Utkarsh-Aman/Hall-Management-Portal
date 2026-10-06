@@ -1,5 +1,5 @@
 """
-Hall Management Portal — FastAPI application entry point.
+Hall Management Portal - FastAPI application entry point.
 
 Run with:
     uvicorn app.main:app --reload --port 8000
@@ -31,13 +31,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Hall 12 — Marathas Portal",
+    title="Hall 12 - Marathas Portal",
     description="Hall Management Portal for IIT Kanpur Hall of Residence XII",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs" if settings.ENABLE_API_DOCS else None,
+    redoc_url="/redoc" if settings.ENABLE_API_DOCS else None,
+    openapi_url="/openapi.json" if settings.ENABLE_API_DOCS else None,
 )
 
-# CORS — restricted to the frontend origin
+# CORS - restricted to the frontend origin
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[url.strip() for url in settings.FRONTEND_URL.split(",") if url.strip()],

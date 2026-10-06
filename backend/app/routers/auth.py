@@ -1,5 +1,5 @@
 """
-Auth router — signup (OTP flow), login, refresh, logout, forced password change.
+Auth router - signup (OTP flow), login, refresh, logout, forced password change.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -20,7 +20,8 @@ from app.dependencies import (
 from app.models.allowed_roll import AllowedRollNumber
 from app.models.user import User, UserRole
 from app.schemas.auth import (
-    ChangePasswordRequest,
+    AuthenticatedChangePasswordRequest,
+    ForcedChangePasswordRequest,
     LoginRequest,
     LoginResponse,
     MessageResponse,
@@ -228,7 +229,7 @@ def forgot_password_verify_otp(body: ForgotPasswordVerifyOTP, db: Session = Depe
             detail="Invalid OTP. Please try again.",
         )
 
-    # OTP is valid — generate reset token (re-using signup token for simplicity)
+    # OTP is valid - generate reset token (re-using signup token for simplicity)
     reset_token = create_signup_token(email)
 
     # Clear OTP fields
@@ -371,7 +372,7 @@ def login(body: LoginRequest, response: Response, db: Session = Depends(get_db))
 # ---------------------------------------------------------------------------
 
 @router.post("/change-password", response_model=LoginResponse)
-def change_password(body: ChangePasswordRequest, response: Response, db: Session = Depends(get_db)):
+def change_password(body: ForcedChangePasswordRequest, response: Response, db: Session = Depends(get_db)):
     payload = decode_token(body.change_token)
     if not payload or payload.get("type") != "change_password":
         raise HTTPException(
@@ -418,6 +419,30 @@ def change_password(body: ChangePasswordRequest, response: Response, db: Session
             room_no=user.room_no,
         ),
     )
+
+
+@router.post("/change-password/authenticated", response_model=MessageResponse)
+def change_authenticated_password(
+    body: AuthenticatedChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Change the password for an already authenticated account."""
+    if not verify_password(body.old_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
+
+    if body.old_password == body.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password.",
+        )
+
+    current_user.password_hash = hash_password(body.new_password)
+    db.commit()
+    return MessageResponse(message="Password changed successfully.")
 
 
 # ---------------------------------------------------------------------------

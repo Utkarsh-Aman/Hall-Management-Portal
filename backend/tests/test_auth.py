@@ -8,57 +8,71 @@ from app.models.allowed_roll import AllowedRollNumber
 from app.services.auth_service import hash_password
 
 
-class TestSignupFlow:
-    """Test the 3-step student signup: request OTP → verify → set password."""
+class TestSetupFlow:
+    """Test setup-code based student onboarding."""
 
-    def test_request_otp_roll_not_allowed(self, client):
-        """Reject signup if roll number not in allowed list."""
-        resp = client.post("/auth/signup/request-otp", json={
-            "email": "test@iitk.ac.in",
+    def test_setup_roll_not_allowed(self, client):
+        resp = client.post("/auth/setup/verify", json={
             "roll_no": "999999",
+            "setup_code": "ABCDEFGH",
         })
-        assert resp.status_code == 403
-        assert "roll number" in resp.json()["detail"].lower()
+        assert resp.status_code == 404
 
-    def test_request_otp_wrong_domain(self, client):
-        """Reject if email doesn't end with @iitk.ac.in."""
-        resp = client.post("/auth/signup/request-otp", json={
-            "email": "test@gmail.com",
-            "roll_no": "230001",
-        })
-        assert resp.status_code == 400
-        assert "iitk.ac.in" in resp.json()["detail"]
-
-    def test_request_otp_success(self, client, db):
-        """Happy path: allowed roll number, valid email → OTP sent."""
-        # Seed allowed roll number
-        db.add(AllowedRollNumber(roll_no="230001", uploaded_by=1))
+    def test_setup_invalid_code(self, client, db):
+        db.add(AllowedRollNumber(
+            roll_no="230001",
+            email="230001@iitk.ac.in",
+            setup_code="ABCDEFGH",
+            uploaded_by=1,
+        ))
         db.commit()
 
-        resp = client.post("/auth/signup/request-otp", json={
-            "email": "230001@iitk.ac.in",
+        resp = client.post("/auth/setup/verify", json={
             "roll_no": "230001",
+            "setup_code": "ZZZZZZZZ",
+        })
+        assert resp.status_code == 400
+
+    def test_setup_verify_success(self, client, db):
+        db.add(AllowedRollNumber(
+            roll_no="230002",
+            name="Student",
+            email="230002@iitk.ac.in",
+            room_number="A-101",
+            setup_code="ABCDEFGH",
+            uploaded_by=1,
+        ))
+        db.commit()
+
+        resp = client.post("/auth/setup/verify", json={
+            "roll_no": "230002",
+            "setup_code": "ABCDEFGH",
         })
         assert resp.status_code == 200
-        assert resp.json()["message"] == "OTP sent to your email."
+        assert resp.json()["email"] == "230002@iitk.ac.in"
 
-    def test_duplicate_signup_rejected(self, client, db):
-        """If user already has a password set, reject."""
-        db.add(AllowedRollNumber(roll_no="230002", uploaded_by=1))
+    def test_duplicate_setup_rejected(self, client, db):
+        db.add(AllowedRollNumber(
+            roll_no="230003",
+            email="230003@iitk.ac.in",
+            setup_code="ABCDEFGH",
+            uploaded_by=1,
+        ))
         db.add(User(
-            identifier="230002@iitk.ac.in",
-            email="230002@iitk.ac.in",
+            identifier="230003@iitk.ac.in",
+            email="230003@iitk.ac.in",
             password_hash=hash_password("Existing123!"),
             role=UserRole.student,
-            name="230002",
+            name="230003",
+            roll_no="230003",
             is_active=True,
             password_set=True,
         ))
         db.commit()
 
-        resp = client.post("/auth/signup/request-otp", json={
-            "email": "230002@iitk.ac.in",
-            "roll_no": "230002",
+        resp = client.post("/auth/setup/verify", json={
+            "roll_no": "230003",
+            "setup_code": "ABCDEFGH",
         })
         assert resp.status_code == 409
 

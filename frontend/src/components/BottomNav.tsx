@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Bottom navigation bar for students — mobile-first with 4 tabs.
+ * Bottom navigation bar for students - mobile-first with 4 tabs.
  */
 
 import React from "react";
@@ -15,10 +15,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/student/dashboard", icon: "📊" },
-  { label: "Browse", href: "/student/browse", icon: "🍽️" },
-  { label: "History", href: "/student/history", icon: "📋" },
-  { label: "Profile", href: "/student/profile", icon: "👤" },
+  { label: "Dashboard", href: "/student/dashboard", icon: "D" },
+  { label: "Browse", href: "/student/browse", icon: "B" },
+  { label: "History", href: "/student/history", icon: "H" },
+  { label: "Profile", href: "/student/profile", icon: "P" },
 ];
 
 export default function BottomNav() {

@@ -1,5 +1,5 @@
 /**
- * API fetch wrapper — handles base URL, auth headers, and token refresh.
+ * API fetch wrapper - handles base URL, auth headers, and token refresh.
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -121,13 +121,26 @@ export async function apiFetchBlob(path: string): Promise<Blob> {
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  let response = await fetch(`${API_BASE}${path}`, {
     headers,
     credentials: "include",
   });
 
+  if (response.status === 401 && accessToken && await tryRefresh()) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+    response = await fetch(`${API_BASE}${path}`, {
+      headers,
+      credentials: "include",
+    });
+  }
+
   if (!response.ok) {
-    throw new Error(`Failed to fetch blob: ${response.status}`);
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(
+      errorData.detail || `Failed to fetch file: ${response.status}`
+    ) as Error & { status: number };
+    error.status = response.status;
+    throw error;
   }
 
   return response.blob();

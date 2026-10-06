@@ -1,5 +1,5 @@
 """
-APScheduler integration — weekly recurrence job for extras items.
+APScheduler integration - weekly recurrence job for extras items.
 
 Runs inside the FastAPI process. For production, swap to an external cron
 or Celery beat by calling `recreate_recurring_items()` from that scheduler
@@ -7,7 +7,8 @@ instead of using APScheduler's BackgroundScheduler.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
@@ -27,8 +28,9 @@ def recreate_recurring_items() -> None:
     """
     db: Session = SessionLocal()
     try:
-        today_weekday = datetime.now(timezone.utc).weekday()  # 0=Mon..6=Sun
-        today_date = datetime.now(timezone.utc).date()
+        now_ist = datetime.now(ZoneInfo("Asia/Kolkata"))
+        today_weekday = now_ist.weekday()  # 0=Mon..6=Sun
+        today_date = now_ist.date()
 
         recurring_items = (
             db.query(ExtrasItem)
@@ -41,10 +43,12 @@ def recreate_recurring_items() -> None:
         )
 
         for template in recurring_items:
-            # We assume it recurrs every 7 days.
-            # Calculate the next occurrence date
-            days_diff = (today_date - template.date).days
-            if days_diff <= 0 or days_diff % 7 != 0:
+            target_weekday = (
+                template.recurring_weekday
+                if template.recurring_weekday is not None
+                else template.date.weekday()
+            )
+            if today_weekday != target_weekday:
                 continue
 
             # Check if already created today
@@ -171,7 +175,7 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("APScheduler started — recurring items job runs every hour.")
+    logger.info("APScheduler started - recurring items job runs every hour.")
 
 
 def stop_scheduler() -> None:

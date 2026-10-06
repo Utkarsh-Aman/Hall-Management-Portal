@@ -1,5 +1,5 @@
 """
-Menu router — read-only weekly menu for students, editable for staff.
+Menu router - read-only weekly menu for students, editable for staff.
 """
 
 from datetime import datetime, timezone

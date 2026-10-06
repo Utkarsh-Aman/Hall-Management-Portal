@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * Student Dashboard — wastage summary cards + weekly menu.
+ * Student Dashboard - wastage summary cards + weekly menu.
  * This is the landing page for students after login.
  */
 
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import { formatDateTime, getDayName, getTodayWeekday } from "@/lib/utils";
+import { formatDate, formatDateTime, getDayName, getTodayWeekday } from "@/lib/utils";
 import type { DashboardSummary, MenuSlot, WeeklyMenuResponse } from "@/types";
 import NoticeBoard from "@/components/NoticeBoard";
 
@@ -76,32 +76,43 @@ export default function StudentDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Avg BDMR */}
           <div className="glass-card p-4 rounded-xl">
-            <p className="text-xs text-text-muted mb-1">Avg. BDMR (7-day)</p>
+            <p className="text-xs text-text-muted mb-1">Avg. BDMR (last 7 days)</p>
             <p className="text-2xl font-bold text-accent">
               {summary?.avg_bdmr != null
-                ? summary.avg_bdmr.toFixed(2)
-                : "—"}
+                ? `INR ${summary.avg_bdmr.toFixed(2)}`
+                : "-"}
             </p>
+            <p className="text-[10px] text-text-muted mt-1">Basic Daily Menu Rate</p>
           </div>
 
           {/* Plain Wastage */}
           <div className="glass-card p-4 rounded-xl">
-            <p className="text-xs text-text-muted mb-1">Plain Wastage</p>
+            <p className="text-xs text-text-muted mb-1">Plain Wastage (kg)</p>
             <p className="text-2xl font-bold text-text-primary">
               {summary?.plain_wastage != null
-                ? summary.plain_wastage.toFixed(2)
-                : "—"}
+                ? `${summary.plain_wastage.toFixed(2)} kg`
+                : "-"}
             </p>
+            {summary?.wastage_date && (
+              <p className="text-[10px] text-text-muted mt-1">
+                Data from {formatDate(summary.wastage_date)}
+              </p>
+            )}
           </div>
 
           {/* Plate Wastage */}
           <div className="glass-card p-4 rounded-xl">
-            <p className="text-xs text-text-muted mb-1">Plate Wastage</p>
+            <p className="text-xs text-text-muted mb-1">Plate Wastage (kg)</p>
             <p className="text-2xl font-bold text-text-primary">
               {summary?.plate_wastage != null
-                ? summary.plate_wastage.toFixed(2)
-                : "—"}
+                ? `${summary.plate_wastage.toFixed(2)} kg`
+                : "-"}
             </p>
+            {summary?.wastage_date && (
+              <p className="text-[10px] text-text-muted mt-1">
+                Data from {formatDate(summary.wastage_date)}
+              </p>
+            )}
           </div>
         </div>
 
@@ -150,7 +161,7 @@ export default function StudentDashboard() {
                         Breakfast
                       </span>
                       <span className="text-text-secondary">
-                        {menuByDay[day].breakfast || "—"}
+                        {menuByDay[day].breakfast || "-"}
                       </span>
                     </div>
                     <div>
@@ -158,7 +169,7 @@ export default function StudentDashboard() {
                         Lunch
                       </span>
                       <span className="text-text-secondary">
-                        {menuByDay[day].lunch || "—"}
+                        {menuByDay[day].lunch || "-"}
                       </span>
                     </div>
                     <div>
@@ -166,7 +177,7 @@ export default function StudentDashboard() {
                         Dinner
                       </span>
                       <span className="text-text-secondary">
-                        {menuByDay[day].dinner || "—"}
+                        {menuByDay[day].dinner || "-"}
                       </span>
                     </div>
                   </div>

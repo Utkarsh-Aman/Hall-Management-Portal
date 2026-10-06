@@ -36,7 +36,10 @@ export default function StaffAccountsPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStaff();
+    // The initial fetch is intentionally mount-only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -80,16 +83,16 @@ export default function StaffAccountsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this staff account?")) return;
+    if (!confirm("Retire this staff account? It will be deactivated and retained for audit history.")) return;
     try {
       await apiFetch(`/hall-office/staff/${id}`, {
         method: "DELETE",
       });
-      toast("Account deleted.", "success");
+      toast("Account retired and deactivated.", "success");
       fetchStaff();
     } catch (err: unknown) {
       const error = err as Error;
-      toast(error.message || "Failed to delete account.", "error");
+      toast(error.message || "Failed to retire account.", "error");
     }
   };
 
@@ -156,11 +159,11 @@ export default function StaffAccountsPage() {
         </form>
       </section>
 
-      {/* Newly created account — temp password display */}
+      {/* Newly created account - temp password display */}
       {createdAccount && (
         <div className="glass-card p-5 rounded-xl border-warning/30 bg-warning-bg animate-fade-in">
           <h3 className="text-sm font-bold text-warning mb-3">
-            ⚠ Account Created — Save This Password
+            Warning: Account Created - Save This Password
           </h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
@@ -259,7 +262,7 @@ export default function StaffAccountsPage() {
                     onClick={() => handleDelete(s.id)}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-error-bg text-error hover:bg-error/20 transition-colors"
                   >
-                    Delete
+                    Retire
                   </button>
                 </div>
               </div>

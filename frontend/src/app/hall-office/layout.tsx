@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import Header from "@/components/Header";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
+import { getRoleHome, useAuth } from "@/lib/auth";
 
 const NAV_ITEMS = [
   { label: "Roll Numbers", href: "/hall-office/roll-numbers" },
@@ -18,14 +18,16 @@ export default function HallOfficeLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { isLoading, isAuthenticated, serverWaking } = useAuth();
+  const { user, isLoading, isAuthenticated, serverWaking } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/login");
+      router.replace("/login");
+    } else if (!isLoading && user && user.role !== "hall_office") {
+      router.replace(getRoleHome(user.role));
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, user, router]);
 
   if (isLoading) {
     return (
@@ -45,7 +47,7 @@ export default function HallOfficeLayout({
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated || user?.role !== "hall_office") return null;
 
   return (
     <div className="flex flex-col min-h-screen">

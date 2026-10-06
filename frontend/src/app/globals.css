@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Hall 12 — Marathas Portal Design System
+   Hall 12 - Marathas Portal Design System
    Dark mode with orange accent
    ============================================================ */
 
@@ -21,7 +21,7 @@
   --color-text-secondary: #a3a3a3;
   --color-text-muted: #737373;
 
-  /* Accent — orange */
+  /* Accent - orange */
   --color-accent: #f97316;
   --color-accent-hover: #ea580c;
   --color-accent-muted: #7c2d12;
@@ -57,7 +57,7 @@ body {
 }
 
 /* ============================================================
-   Interactive Elements — Global cursor, hover & click effects
+   Interactive Elements - Global cursor, hover & click effects
    ============================================================ */
 
 /* Pointer cursor for all clickable elements */

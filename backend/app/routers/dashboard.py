@@ -1,10 +1,12 @@
 """
-Dashboard router — student wastage summary.
+Dashboard router - student wastage summary.
 """
 
-from datetime import timedelta, timezone, datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, require_role
@@ -27,26 +29,46 @@ def get_dashboard_summary(
     - plate_wastage: latest single day's figure
     - last_updated: timestamp of the most recent wastage_logs entry
     """
-    # Get the 7 most recent wastage logs by date
-    recent_logs = (
+    today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    period_start = today - timedelta(days=6)
+
+    # The BDMR average covers the current India calendar day and six days before it.
+    bdmr_logs = (
         db.query(WastageLog)
-        .order_by(WastageLog.date.desc())
-        .limit(7)
+        .filter(
+            WastageLog.date >= period_start,
+            WastageLog.date <= today,
+        )
         .all()
     )
 
-    if not recent_logs:
+    latest = (
+        db.query(WastageLog)
+        .filter(WastageLog.date <= today)
+        .order_by(WastageLog.date.desc())
+        .first()
+    )
+
+    if not latest:
         return DashboardSummary()
 
-    # Latest entry
-    latest = recent_logs[0]
+    avg_bdmr = None
+    if bdmr_logs:
+        avg_bdmr = round(
+            sum(log.bdmr for log in bdmr_logs) / len(bdmr_logs),
+            2,
+        )
 
-    # 7-day rolling average BDMR
-    avg_bdmr = sum(log.bdmr for log in recent_logs) / len(recent_logs)
+    last_updated = (
+        db.query(func.max(WastageLog.entered_at))
+        .filter(WastageLog.date <= today)
+        .scalar()
+    )
 
     return DashboardSummary(
-        avg_bdmr=round(avg_bdmr, 2),
+        avg_bdmr=avg_bdmr,
         plain_wastage=latest.plain_wastage,
         plate_wastage=latest.plate_wastage,
-        last_updated=latest.entered_at,
+        wastage_date=latest.date,
+        last_updated=last_updated,
     )

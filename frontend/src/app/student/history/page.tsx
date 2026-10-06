@@ -1,14 +1,18 @@
 "use client";
 
 /**
- * Booking history — lists all bookings with QR code viewer.
+ * Booking history - lists all bookings with QR code viewer.
  */
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { apiFetch, apiFetchBlob } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { formatPrice, parseApiDate } from "@/lib/utils";
 import type { Booking, BookingListResponse } from "@/types";
+
+const QR_SCANNING_ENABLED =
+  process.env.NEXT_PUBLIC_QR_SCANNING_ENABLED === "true";
 
 /** Generate a timestamp string for CSV filenames: YYYYMMDD_HHmmss */
 const getTimestamp = () => {
@@ -21,9 +25,11 @@ export default function HistoryPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [runningTotal, setRunningTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  // TODO v2: Re-enable QR code display for students
-  // const [qrBookingId, setQrBookingId] = useState<number | null>(null);
-  // const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [qrBookingId, setQrBookingId] = useState<number | null>(null);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [editQty, setEditQty] = useState(1);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [startDate, setStartDate] = useState<Date>(() => new Date());
   const { toast } = useToast();
 
@@ -47,6 +53,7 @@ export default function HistoryPage() {
   }, [startDate, toast]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBookings();
   }, [fetchBookings]);
 
@@ -69,29 +76,35 @@ export default function HistoryPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err: unknown) {
+    } catch {
       toast("Failed to download CSV.", "error");
     }
   };
 
-  // TODO v2: Re-enable QR code display for students
-  // const showQR = async (bookingId: number) => {
-  //   setQrBookingId(bookingId);
-  //   try {
-  //     const blob = await apiFetchBlob(`/bookings/${bookingId}/qr`);
-  //     const url = URL.createObjectURL(blob);
-  //     setQrImageUrl(url);
-  //   } catch {
-  //     toast("Failed to load QR code.", "error");
-  //     setQrBookingId(null);
-  //   }
-  // };
-  //
-  // const closeQR = () => {
-  //   if (qrImageUrl) URL.revokeObjectURL(qrImageUrl);
-  //   setQrBookingId(null);
-  //   setQrImageUrl(null);
-  // };
+  const showQR = async (bookingId: number) => {
+    if (qrImageUrl) URL.revokeObjectURL(qrImageUrl);
+    setQrImageUrl(null);
+    setQrBookingId(bookingId);
+    try {
+      const blob = await apiFetchBlob(`/bookings/${bookingId}/qr`);
+      setQrImageUrl(URL.createObjectURL(blob));
+    } catch (err: unknown) {
+      toast((err as Error).message || "Failed to load QR code.", "error");
+      setQrBookingId(null);
+    }
+  };
+
+  const closeQR = () => {
+    if (qrImageUrl) URL.revokeObjectURL(qrImageUrl);
+    setQrBookingId(null);
+    setQrImageUrl(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (qrImageUrl) URL.revokeObjectURL(qrImageUrl);
+    };
+  }, [qrImageUrl]);
 
   const handleCancel = async (bookingId: number) => {
     if (!confirm("Are you sure you want to cancel this booking?")) return;
@@ -112,6 +125,21 @@ export default function HistoryPage() {
       fetchBookings();
     } catch (err: unknown) {
       toast((err as Error).message || "Failed to request cancellation.", "error");
+    }
+  };
+
+  const handleUpdateQuantity = async () => {
+    if (!editingBooking) return;
+    setIsUpdating(true);
+    try {
+      await apiFetch(`/bookings/${editingBooking.id}?qty=${editQty}`, { method: "PUT" });
+      toast("Booking quantity updated.", "success");
+      setEditingBooking(null);
+      await fetchBookings();
+    } catch (err: unknown) {
+      toast((err as Error).message || "Failed to update booking.", "error");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -210,23 +238,34 @@ export default function HistoryPage() {
                 </div>
               </div>
 
-              {(b.status === "booked" || b.status === "cancel_requested") && (
+              {b.status === "booked" && (
                 <div className="flex flex-col gap-2 flex-shrink-0 relative z-10">
-                  {/* TODO v2: Re-enable QR code display for students */}
-                  {/* <button
-                    onClick={() => showQR(b.id)}
-                    className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-lg shadow-accent/20 transition-all hover:scale-105 active:scale-95"
-                  >
-                    Show QR
-                  </button> */}
-                  {b.status === "booked" && (
-                    new Date() < parseApiDate(b.closes_at) ? (
+                  {QR_SCANNING_ENABLED && (
+                    <button
+                      onClick={() => showQR(b.id)}
+                      className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-lg shadow-accent/20 transition-all hover:scale-105 active:scale-95"
+                    >
+                      Show QR
+                    </button>
+                  )}
+                  {new Date() < parseApiDate(b.closes_at) ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingBooking(b);
+                          setEditQty(b.qty);
+                        }}
+                        className="px-4 py-2 rounded-xl border border-accent/30 text-accent text-xs font-bold hover:bg-accent/10 transition-colors"
+                      >
+                        Edit Qty
+                      </button>
                       <button
                         onClick={() => handleCancel(b.id)}
                         className="px-4 py-2 rounded-xl border border-error/30 text-error text-xs font-bold hover:bg-error/10 transition-colors"
                       >
                         Cancel
                       </button>
+                    </>
                     ) : (
                       <button
                         onClick={() => handleRequestCancel(b.id)}
@@ -234,8 +273,7 @@ export default function HistoryPage() {
                       >
                         Req Cancel
                       </button>
-                    )
-                  )}
+                    )}
                 </div>
               )}
             </div>
@@ -254,8 +292,28 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* TODO v2: Re-enable QR Modal for students
-      {qrBookingId && (
+      {editingBooking && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingBooking(null)} />
+          <div className="relative w-full max-w-sm mx-4 mb-24 sm:mb-0 glass-card p-6 rounded-2xl animate-fade-in">
+            <h2 className="text-base font-bold text-text-primary">Update {editingBooking.item_name}</h2>
+            <p className="text-xs text-text-muted mt-1 mb-5">Choose a quantity from 1 to 10.</p>
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <button onClick={() => setEditQty(Math.max(1, editQty - 1))} className="w-10 h-10 rounded-xl bg-bg-elevated border border-border text-lg font-bold">−</button>
+              <span className="text-2xl font-bold min-w-[3ch] text-center">{editQty}</span>
+              <button onClick={() => setEditQty(Math.min(10, editQty + 1))} className="w-10 h-10 rounded-xl bg-bg-elevated border border-border text-lg font-bold">+</button>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setEditingBooking(null)} className="flex-1 py-2.5 rounded-xl border border-border text-sm">Cancel</button>
+              <button onClick={handleUpdateQuantity} disabled={isUpdating || editQty === editingBooking.qty} className="flex-1 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold disabled:opacity-50">
+                {isUpdating ? "Updating…" : "Update"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {QR_SCANNING_ENABLED && qrBookingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -266,9 +324,12 @@ export default function HistoryPage() {
               Your QR Code
             </h2>
             {qrImageUrl ? (
-              <img
+              <Image
                 src={qrImageUrl}
                 alt="Booking QR Code"
+                width={192}
+                height={192}
+                unoptimized
                 className="w-48 h-48 rounded-xl bg-white p-2"
               />
             ) : (
@@ -288,7 +349,6 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
-      */}
     </div>
   );
 }

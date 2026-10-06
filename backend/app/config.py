@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # JWT
     JWT_SECRET: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Frontend URL (for CORS)
@@ -24,7 +24,13 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = False
     COOKIE_SAMESITE: str = "lax"
 
-    # SMTP (optional — console backend used when these are empty)
+    # QR generation/scanning can be disabled without removing the implementation.
+    QR_SCANNING_ENABLED: bool = False
+
+    # Interactive API documentation is disabled unless explicitly enabled.
+    ENABLE_API_DOCS: bool = False
+
+    # SMTP (optional - console backend used when these are empty)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""

@@ -3,7 +3,7 @@
 import React from "react";
 
 /**
- * Header component — logo, portal name, and logout button.
+ * Header component - logo, portal name, and logout button.
  */
 import { useAuth } from "@/lib/auth";
 import Image from "next/image";
@@ -26,7 +26,7 @@ export default function Header() {
           />
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-text-primary leading-tight">
-              Hall 12 — Marathas
+              Hall 12 - Marathas
             </span>
             {user && (
               <span className="text-[11px] text-text-muted leading-tight capitalize">

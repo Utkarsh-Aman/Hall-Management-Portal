@@ -28,7 +28,7 @@ export default function ProfilePage() {
 
     setIsSubmitting(true);
     try {
-      await apiFetch("/auth/change-password", {
+      await apiFetch("/auth/change-password/authenticated", {
         method: "POST",
         body: JSON.stringify({
           old_password: oldPassword,

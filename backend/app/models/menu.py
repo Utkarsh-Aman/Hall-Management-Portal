@@ -1,5 +1,5 @@
 """
-Weekly menu model — 7 days × 3 meals grid.
+Weekly menu model - 7 days × 3 meals grid.
 """
 
 import enum

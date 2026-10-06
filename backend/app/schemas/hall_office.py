@@ -4,7 +4,7 @@ Pydantic schemas for hall_office endpoints.
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class StaffCreateRequest(BaseModel):
@@ -18,13 +18,13 @@ class StaffCreateRequest(BaseModel):
 
 
 class StaffCreateResponse(BaseModel):
-    """Returned once — contains the temporary password."""
+    """Returned once - contains the temporary password."""
     id: int
     identifier: str
     name: str
     role: str
     temp_password: str
-    message: str = "Account created. Share this password securely — it will not be shown again."
+    message: str = "Account created. Share this password securely - it will not be shown again."
 
 
 class StaffListItem(BaseModel):
@@ -48,9 +48,9 @@ class RollNumberUploadResponse(BaseModel):
 
 
 class AllowedRollCreate(BaseModel):
-    roll_no: str = Field(..., min_length=1, max_length=50)
+    roll_no: str = Field(..., min_length=3, max_length=50, pattern=r"^[A-Za-z0-9-]+$")
     name: str | None = Field(None, max_length=255)
-    email: str | None = Field(None, max_length=255)
+    email: EmailStr | None = None
     room_number: str | None = Field(None, max_length=50)
 
 

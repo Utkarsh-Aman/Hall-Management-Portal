@@ -149,7 +149,7 @@ export default function NoticeBoard() {
                     rel="noopener noreferrer"
                     className="text-xs font-medium text-accent hover:underline"
                   >
-                    Open Link ↗
+                    Open Link
                   </a>
                 )}
               </div>

@@ -1,5 +1,5 @@
 /**
- * Shared utility functions — date formatting, helpers.
+ * Shared utility functions - date formatting, helpers.
  */
 
 const DAY_NAMES = [
@@ -97,4 +97,21 @@ export function formatPrice(price: number): string {
 export function getTodayWeekday(): number {
   const jsDay = new Date().getDay(); // 0=Sunday, 1=Monday, ...
   return jsDay === 0 ? 6 : jsDay - 1; // Convert to 0=Monday
+}
+
+/**
+ * Return today's date in India as YYYY-MM-DD for date inputs and API payloads.
+ */
+export function getTodayInIndia(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(
+    parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value])
+  );
+  return `${values.year}-${values.month}-${values.day}`;
 }

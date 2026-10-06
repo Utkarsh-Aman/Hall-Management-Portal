@@ -1,5 +1,5 @@
 """
-Wastage logs model — one entry per day, editable same-day.
+Wastage logs model - one entry per day, editable same-day.
 """
 
 from datetime import date, datetime

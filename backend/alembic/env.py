@@ -1,5 +1,5 @@
 """
-Alembic env.py — configured to use our app's models and DATABASE_URL.
+Alembic env.py - configured to use our app's models and DATABASE_URL.
 """
 
 from logging.config import fileConfig

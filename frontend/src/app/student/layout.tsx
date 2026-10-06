@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * Student layout — header + content + bottom nav.
+ * Student layout - header + content + bottom nav.
  */
 
 import React, { useEffect } from "react";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import { useAuth } from "@/lib/auth";
+import { getRoleHome, useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 export default function StudentLayout({
@@ -15,14 +15,16 @@ export default function StudentLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isLoading, isAuthenticated, serverWaking } = useAuth();
+  const { user, isLoading, isAuthenticated, serverWaking } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/login");
+      router.replace("/login");
+    } else if (!isLoading && user && user.role !== "student") {
+      router.replace(getRoleHome(user.role));
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, user, router]);
 
   if (isLoading) {
     return (
@@ -42,7 +44,7 @@ export default function StudentLayout({
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated || user?.role !== "student") return null;
 
   return (
     <div className="flex flex-col min-h-screen">

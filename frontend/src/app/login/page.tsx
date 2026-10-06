@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Login page — shared by all roles.
+ * Login page - shared by all roles.
  */
 
 import React, { useState } from "react";
@@ -63,7 +63,7 @@ export default function LoginPage() {
             priority
           />
           <h1 className="text-xl font-bold text-text-primary">
-            Hall 12 — Marathas
+            Hall 12 - Marathas
           </h1>
           <p className="text-sm text-text-muted mt-1">
             Hall Management Portal
@@ -142,7 +142,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-xs text-text-muted mt-8 opacity-75">
-          made with ❤️ by your mess & canteen secretary
+          made with care by your mess & canteen secretary
         </p>
       </div>
     </div>

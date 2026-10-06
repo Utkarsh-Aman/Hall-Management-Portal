@@ -1,22 +1,21 @@
 "use client";
 
 /**
- * Mess staff — wastage entry form + history.
+ * Mess staff - wastage entry form + history.
  */
 
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime, getTodayInIndia } from "@/lib/utils";
 import type { WastageLog } from "@/types";
 
 export default function StaffWastagePage() {
   const [logs, setLogs] = useState<WastageLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Form state — pre-filled for today
-  const today = new Date().toISOString().slice(0, 10);
-  const [formDate, setFormDate] = useState(today);
+  // Form state - pre-filled for today
+  const today = getTodayInIndia();
   const [bdmr, setBdmr] = useState("");
   const [plainWastage, setPlainWastage] = useState("");
   const [plateWastage, setPlateWastage] = useState("");
@@ -58,7 +57,7 @@ export default function StaffWastagePage() {
       await apiFetch("/staff/wastage", {
         method: "POST",
         body: JSON.stringify({
-          date: formDate,
+          date: today,
           bdmr: parseFloat(bdmr),
           plain_wastage: parseFloat(plainWastage),
           plate_wastage: parseFloat(plateWastage),
@@ -90,19 +89,23 @@ export default function StaffWastagePage() {
             <label className="block text-xs text-text-secondary mb-1">Date</label>
             <input
               type="date"
-              value={formDate}
-              onChange={(e) => setFormDate(e.target.value)}
+              value={today}
+              min={today}
+              max={today}
+              readOnly
               className="w-full px-3 py-2 rounded-xl bg-bg-elevated border border-border text-sm text-text-primary focus:outline-none focus:border-accent input-glow"
               required
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label className="block text-xs text-text-secondary mb-1">BDMR</label>
+              <label className="block text-xs text-text-secondary mb-1">BDMR (INR)</label>
               <input
                 type="number"
                 step="0.01"
+                min="0"
+                inputMode="decimal"
                 value={bdmr}
                 onChange={(e) => setBdmr(e.target.value)}
                 placeholder="0.00"
@@ -111,10 +114,12 @@ export default function StaffWastagePage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-text-secondary mb-1">Plain Wastage</label>
+              <label className="block text-xs text-text-secondary mb-1">Plain Wastage (kg)</label>
               <input
                 type="number"
                 step="0.01"
+                min="0"
+                inputMode="decimal"
                 value={plainWastage}
                 onChange={(e) => setPlainWastage(e.target.value)}
                 placeholder="0.00"
@@ -123,10 +128,12 @@ export default function StaffWastagePage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-text-secondary mb-1">Plate Wastage</label>
+              <label className="block text-xs text-text-secondary mb-1">Plate Wastage (kg)</label>
               <input
                 type="number"
                 step="0.01"
+                min="0"
+                inputMode="decimal"
                 value={plateWastage}
                 onChange={(e) => setPlateWastage(e.target.value)}
                 placeholder="0.00"
@@ -175,15 +182,15 @@ export default function StaffWastagePage() {
                     {formatDateTime(log.entered_at)}
                   </span>
                 </div>
-                <div className="flex gap-4 text-xs text-text-muted">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
                   <span>
-                    BDMR: <strong className="text-text-secondary">{log.bdmr}</strong>
+                    BDMR: <strong className="text-text-secondary">INR {log.bdmr}</strong>
                   </span>
                   <span>
-                    Plain: <strong className="text-text-secondary">{log.plain_wastage}</strong>
+                    Plain: <strong className="text-text-secondary">{log.plain_wastage} kg</strong>
                   </span>
                   <span>
-                    Plate: <strong className="text-text-secondary">{log.plate_wastage}</strong>
+                    Plate: <strong className="text-text-secondary">{log.plate_wastage} kg</strong>
                   </span>
                 </div>
               </div>
